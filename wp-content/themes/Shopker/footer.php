@@ -392,3 +392,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 });
 </script>
+
+<?php wp_footer(); ?>
+</body>
+</html>
+</script>

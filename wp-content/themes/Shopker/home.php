@@ -4,53 +4,194 @@
  */
 get_header(); ?>
 
-<section class="relative h-screen w-full flex items-center overflow-hidden">
-    <div class="absolute inset-0 bg-cover bg-center"
-        style="background-image: url('<?php echo get_template_directory_uri(); ?>/assets/images/hero.png');">
-        <div class="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-transparent"></div>
+<style>
+    .hero-section {
+        background-image: url('<?php echo get_template_directory_uri(); ?>/assets/images/hero.png');
+        background-size: cover;
+        background-position: center;
+    }
+    
+    @media (max-width: 768px) {
+        .hero-section {
+            background-image: url('<?php echo get_template_directory_uri(); ?>/assets/images/mobile_hero.png');
+        }
+    }
+
+    /* Hero section responsive styles */
+    .hero-container {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+
+    @media (min-width: 640px) {
+        .hero-container {
+            padding-left: 3rem;
+            padding-right: 3rem;
+            margin-left: 80px;
+            max-height: 300px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .hero-container {
+            margin-left: 150px;
+        }
+    }
+
+    /* Responsive heading sizes */
+    .hero-heading {
+        font-size: 2rem; /* Default small screens */
+        line-height: 1.1;
+    }
+
+    @media (min-width: 640px) {
+        .hero-heading {
+            font-size: 3rem;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .hero-heading {
+            font-size: 3.75rem;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .hero-heading {
+            font-size: 4.5rem;
+        }
+    }
+
+    /* Responsive paragraph */
+    .hero-paragraph {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    @media (min-width: 768px) {
+        .hero-paragraph {
+            font-size: 1.125rem;
+        }
+    }
+
+    /* Responsive buttons */
+    .hero-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        flex-direction: column;
+    }
+
+    @media (min-width: 640px) {
+        .hero-buttons {
+            flex-direction: row;
+            gap: 1rem;
+        }
+    }
+
+    .hero-button {
+        padding: 0.75rem 1.5rem;
+        font-size: 0.875rem;
+    }
+
+    @media (min-width: 768px) {
+        .hero-button {
+            padding: 1rem 2rem;
+        }
+    }
+
+    /* Responsive badge */
+    .hero-badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 1rem;
+    }
+
+    @media (min-width: 768px) {
+        .hero-badge {
+            padding: 0.5rem 1rem;
+        }
+    }
+
+    /* Responsive promo box */
+    .hero-promo-box {
+        font-size: 0.75rem;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: -200px;
+    }
+
+    @media (min-width: 640px) {
+        .hero-promo-box {
+            font-size: 0.875rem;
+            flex-direction: row;
+            gap: 0
+        }
+    }
+
+    @media (min-width: 768px) {
+        .hero-promo-box {
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+        }
+    }
+
+    /* Arrow animation */
+    .hero-arrow {
+        bottom: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .hero-arrow {
+            bottom: 2.5rem;
+        }
+    }
+</style>
+
+<section class="relative w-full flex items-center overflow-hidden" style="height: 100vh; min-height: 100vh;">
+    <div class="hero-section absolute inset-0">
+        <div class="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
     </div>
 
-    <div class="relative z-10 w-full max-w-8xl mx-auto ml-[150px] px-6 md:px-12">
-        <div class="max-w-4xl">
-            <div class="inline-block mb-4">
-                <span
-                    class="bg-[#FF4500] text-white px-4 py-1.5 rounded-full text-[12px] font-black uppercase tracking-wider shadow-lg">
+    <div class="hero-container relative z-10 w-full max-w-7xl mx-auto">
+        <div class="max-w-2xl">
+            <div class="inline-block mb-3 sm:mb-4">
+                <span class="hero-badge bg-[#FF4500] text-white rounded-full font-black uppercase tracking-wider shadow-lg inline-block">
                     ✨ Welcome to Shopker
                 </span>
             </div>
 
-            <h1 class="text-5xl md:text-7xl font-black text-white mb-4 leading-[1.1] drop-shadow-md">
-                Your Premium <br> Shopping <br> Destination
+            <h1 class="hero-heading font-black text-white mb-3 sm:mb-4 drop-shadow-md">
+                Your Premium Shopping Destination
             </h1>
 
-            <p class="text-lg md:text-xl text-gray-100 mb-8 font-medium max-w-lg leading-relaxed">
+            <p class="hero-paragraph text-gray-100 mb-6 sm:mb-8 font-medium max-w-lg leading-relaxed">
                 Discover thousands of products with exclusive deals and fast delivery nationwide.
             </p>
 
-            <div class="flex flex-wrap gap-4 mb-8">
+            <div class="hero-buttons mb-6 sm:mb-8">
                 <a href="<?php echo esc_url(wc_get_page_permalink('shop')); ?>"
-                    class="bg-[#FF4500] hover:bg-[#e63e00] text-white px-8 py-4 rounded-xl font-black text-sm uppercase transition transform hover:scale-105 shadow-xl flex items-center gap-2">
-                    🛍️ Start Shopping
+                    class="hero-button bg-[#FF4500] hover:bg-[#e63e00] text-white rounded-lg sm:rounded-xl font-black uppercase transition transform hover:scale-105 shadow-xl inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                    🛍️ <span>Start Shopping</span>
                 </a>
                 <a href="#"
-                    class="bg-white hover:bg-gray-100 text-black px-8 py-4 rounded-xl font-black text-sm uppercase transition transform hover:scale-105 shadow-xl flex items-center gap-2">
-                    📞 Contact Us
+                    class="hero-button bg-white hover:bg-gray-100 text-black rounded-lg sm:rounded-xl font-black uppercase transition transform hover:scale-105 shadow-xl inline-flex items-center justify-center gap-2 whitespace-nowrap">
+                    📞 <span>Contact Us</span>
                 </a>
             </div>
 
-            <div class="inline-flex bg-white px-6 py-3 rounded-xl shadow-2xl border-b-4 border-orange-500">
-                <p class="text-[13px] md:text-sm font-black tracking-tight text-gray-800">
+            <div class="hero-promo-box inline-flex bg-white rounded-lg sm:rounded-xl shadow-2xl border-b-4 border-orange-500">
+                <p class="font-black tracking-tight text-gray-800">
                     <span class="text-orange-600">🎁 BUY 2 GET 1 FREE</span>
-                    <span class="mx-2 text-gray-300">|</span>
-                    <span class="text-orange-600">🚚 FREE DELIVERY ALL OVER PAKISTAN</span>
+                    <span class="mx-1 sm:mx-2 text-gray-300">|</span>
+                    <span class="text-orange-600">🚚 FREE DELIVERY</span>
                 </p>
             </div>
         </div>
     </div>
 
-    <div class="absolute bottom-10 left-1/2 -translate-x-1/2">
+    <div class="hero-arrow absolute left-1/2 -translate-x-1/2">
         <div class="animate-bounce">
-            <svg class="w-6 h-6 text-white opacity-70" fill="none" stroke="currentColor" stroke-width="3"
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white opacity-70" fill="none" stroke="currentColor" stroke-width="3"
                 viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
             </svg>

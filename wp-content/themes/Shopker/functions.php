@@ -61,7 +61,25 @@ function shopker_enqueue_scripts()
     // 1.1 Font Awesome
     wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css', array(), '6.5.1');
 
-    // 2. Theme CSS and JS
+    // 2. Header CSS and JS
+    $header_css_path = get_template_directory() . '/assets/css/header.css';
+    $header_js_path = get_template_directory() . '/assets/js/header.js';
+    
+    $header_css_version = file_exists($header_css_path) ? (string) filemtime($header_css_path) : null;
+    $header_js_version = file_exists($header_js_path) ? (string) filemtime($header_js_path) : null;
+
+    // Enqueue header CSS
+    wp_enqueue_style('header-css', get_template_directory_uri() . '/assets/css/header.css', array(), $header_css_version);
+    
+    // Enqueue header JS in footer with higher priority
+    wp_enqueue_script('header-js', get_template_directory_uri() . '/assets/js/header.js', array(), $header_js_version, true);
+
+    // Localize script with AJAX URL
+    wp_localize_script('header-js', 'shopkerAjax', array(
+        'ajaxUrl' => admin_url('admin-ajax.php')
+    ));
+
+    // 2.1 Theme CSS and JS
     $main_css_path = get_template_directory() . '/assets/css/main.css';
     $main_js_path = get_template_directory() . '/assets/js/main.js';
     $style_css_path = get_stylesheet_directory() . '/style.css';
