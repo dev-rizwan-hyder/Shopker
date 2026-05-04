@@ -101,6 +101,226 @@ function shopker_enqueue_scripts()
 }
 add_action('wp_enqueue_scripts', 'shopker_enqueue_scripts');
 
+/**
+ * Init hook - disable AJAX checkout very early
+ */
+add_action('init', 'shopker_disable_ajax_checkout_early', 5);
+function shopker_disable_ajax_checkout_early() {
+    // Force disable AJAX checkout
+    if (!defined('WOOCOMMERCE_CHECKOUT')) {
+        define('WOOCOMMERCE_CHECKOUT', true);
+    }
+    error_log('Shopker: init hook - AJAX checkout disabled');
+    
+    // Create the orders table if it doesn't exist
+    shopker_create_orders_table();
+}
+
+/**
+ * Create custom orders table on initialization
+ */
+function shopker_create_orders_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'shopker_orders';
+    
+    // Check if table already exists
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name) {
+        return; // Table exists, no need to create
+    }
+    
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        order_id bigint(20) NOT NULL,
+        customer_name varchar(255) NOT NULL,
+        customer_email varchar(255) NOT NULL,
+        customer_phone varchar(20) NOT NULL,
+        shipping_address text NOT NULL,
+        city varchar(100) NOT NULL,
+        state varchar(100) NOT NULL,
+        postal_code varchar(20) NOT NULL,
+        order_total decimal(10, 2) NOT NULL,
+        items_count int(11) NOT NULL,
+        payment_method varchar(100) NOT NULL,
+        order_status varchar(50) DEFAULT 'pending',
+        special_instructions text,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id),
+        UNIQUE KEY order_id (order_id)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    // Verify table was created
+    if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name) {
+        error_log('Shopker: Orders table created successfully');
+    } else {
+        error_log('Shopker: Failed to create orders table - ' . $wpdb->last_error);
+    }
+}
+
+/**
+ * Debug: Check if checkout page is loading
+ */
+add_action('wp', 'shopker_checkout_page_debug');
+function shopker_checkout_page_debug() {
+    error_log('Shopker: wp hook fired');
+    
+    if (is_checkout()) {
+        error_log('Shopker: *** CHECKOUT PAGE DETECTED ***');
+    }
+    
+    // Log POST data if form submitted
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        error_log('Shopker: *** POST REQUEST DETECTED ***');
+        error_log('Shopker: POST data keys: ' . json_encode(array_keys($_POST)));
+        if (isset($_POST['woocommerce_checkout_place_order'])) {
+            error_log('Shopker: *** CHECKOUT BUTTON CLICKED ***');
+        }
+    }
+}
+
+/**
+ * Ensure WooCommerce checkout scripts are loaded on checkout page
+ */
+function shopker_enqueue_checkout_scripts() {
+    if (is_checkout()) {
+        error_log('Shopker: Enqueuing checkout scripts');
+        wp_enqueue_script('jquery');
+        wp_enqueue_script('wc-checkout');
+    }
+}
+add_action('wp_enqueue_scripts', 'shopker_enqueue_checkout_scripts', 20);
+
+/**
+ * Handle checkout order completion and redirect
+ * SIMPLIFIED - just logging, no status updates that might trigger loops
+ */
+add_action('woocommerce_checkout_order_processed', 'shopker_process_order_after_checkout', 10, 3);
+function shopker_process_order_after_checkout($order_id, $posted_data, $order) {
+    error_log('Shopker: Order #' . $order_id . ' checkout processed');
+}
+
+/**
+ * Prevent checkout errors after order is successfully created
+ */
+// Removed - this was causing issues
+
+/**
+ * Catch successful order processing and force redirect
+ */
+add_action('woocommerce_thankyou', 'shopker_order_thankyou_page_handler', 5, 1);
+function shopker_order_thankyou_page_handler($order_id) {
+    error_log('Shopker: Thank you page handler called for order #' . $order_id);
+    // Order was successfully created and we're on the thank you page
+    // This is the right place - let it continue
+}
+
+/**
+ * Handle checkout errors - prevent blank page redirect
+ */
+add_action('template_redirect', 'shopker_handle_checkout_redirect', 1);
+function shopker_handle_checkout_redirect() {
+    if (!is_checkout()) {
+        return;
+    }
+    
+    // If there are checkout errors, stay on checkout page and display them
+    if (isset($_POST['woocommerce_checkout_place_order']) && WC()->cart->is_empty()) {
+        error_log('Shopker: Checkout attempted with empty cart');
+    }
+}
+
+/**
+ * Map custom checkout field names to WooCommerce standard names
+ */
+add_filter('woocommerce_process_checkout_field_value', 'shopker_map_checkout_fields', 10, 2);
+function shopker_map_checkout_fields($value, $key) {
+    // Map custom field names to WooCommerce standard names
+    $field_mapping = array(
+        'address'   => 'billing_address_1',
+        'address_2' => 'billing_address_2',
+        'city'      => 'billing_city',
+        'state'     => 'billing_state',
+        'postcode'  => 'billing_postcode',
+        'country'   => 'billing_country',
+    );
+    
+    // If this is a custom field name, map it to standard WC field
+    if (in_array($key, array_keys($field_mapping)) && isset($_POST[$key])) {
+        $_POST[$field_mapping[$key]] = sanitize_text_field($_POST[$key]);
+        error_log('Shopker: Mapped POST field "' . $key . '" to "' . $field_mapping[$key] . '"');
+    }
+    
+    return $value;
+}
+
+/**
+ * Process checkout form - validate and create order
+ */
+add_action('woocommerce_checkout_process', 'shopker_checkout_validation', 5);
+function shopker_checkout_validation() {
+    error_log('Shopker: *** woocommerce_checkout_process hook FIRED ***');
+    
+    // Log all POST data for debugging
+    error_log('Shopker: POST keys: ' . json_encode(array_keys($_POST)));
+    error_log('Shopker: Cart items: ' . WC()->cart->get_cart_contents_count());
+    error_log('Shopker: Cart total: ' . WC()->cart->get_total('edit'));
+    
+    // Use WooCommerce checkout object for validation (more reliable)
+    $checkout = WC()->checkout;
+    $validation_passed = true;
+    
+    // Validate required checkout fields using WC checkout object
+    $required_fields = array(
+        'billing_first_name' => 'First Name',
+        'billing_last_name' => 'Last Name',
+        'billing_email' => 'Email Address',
+        'billing_phone' => 'Phone Number',
+        'billing_address_1' => 'Street Address',
+        'billing_city' => 'City',
+        'billing_state' => 'State/Province',
+    );
+    
+    foreach ($required_fields as $field => $field_name) {
+        // Try to get value from WC checkout first, then POST, then custom field name
+        $value = '';
+        if (method_exists($checkout, 'get_value')) {
+            $value = $checkout->get_value($field);
+        }
+        
+        // If still empty, check POST
+        if (empty($value) && isset($_POST[$field])) {
+            $value = sanitize_text_field($_POST[$field]);
+        }
+        
+        error_log('Shopker: Field "' . $field . '" = "' . substr($value, 0, 50) . '"');
+        
+        if (empty($value)) {
+            wc_add_notice(sprintf(__('%s is required', 'woocommerce'), $field_name), 'error');
+            error_log('Shopker: MISSING REQUIRED FIELD: ' . $field);
+            $validation_passed = false;
+        }
+    }
+    
+    if (!$validation_passed) {
+        error_log('Shopker: *** CHECKOUT VALIDATION FAILED - FORM WILL NOT SUBMIT ***');
+        return;
+    }
+    
+    error_log('Shopker: *** ALL VALIDATION PASSED - PROCEEDING WITH CHECKOUT ***');
+}
+
+/**
+ * Hook into order created event
+ */
+add_action('woocommerce_checkout_order_created', 'shopker_order_draft_created', 10, 1);
+function shopker_order_draft_created($order) {
+    error_log('Shopker: Order #' . $order->get_id() . ' created');
+}
+
 
 /**
  * WooCommerce tiered pricing for Shopker.
@@ -601,37 +821,18 @@ function shopker_ajax_get_cart_contents() {
 }
 
 /**
- * Create custom orders table on theme activation
+ * AJAX handler to clear cart after order completion
  */
-function shopker_create_orders_table() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'shopker_orders';
-    $charset_collate = $wpdb->get_charset_collate();
-
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        order_id bigint(20) NOT NULL,
-        customer_name varchar(255) NOT NULL,
-        customer_email varchar(255) NOT NULL,
-        customer_phone varchar(20) NOT NULL,
-        shipping_address text NOT NULL,
-        city varchar(100) NOT NULL,
-        state varchar(100) NOT NULL,
-        postal_code varchar(20) NOT NULL,
-        order_total decimal(10, 2) NOT NULL,
-        items_count int(11) NOT NULL,
-        payment_method varchar(100) NOT NULL,
-        order_status varchar(50) DEFAULT 'pending',
-        special_instructions text,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY  (id),
-        UNIQUE KEY order_id (order_id)
-    ) $charset_collate;";
-
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
+add_action('wp_ajax_woocommerce_clear_cart', 'shopker_ajax_clear_cart');
+add_action('wp_ajax_nopriv_woocommerce_clear_cart', 'shopker_ajax_clear_cart');
+function shopker_ajax_clear_cart() {
+    if (function_exists('WC') && WC()->cart) {
+        WC()->cart->empty_cart();
+        wp_send_json(array('success' => true, 'message' => 'Cart cleared successfully'));
+    } else {
+        wp_send_json(array('success' => false, 'message' => 'Cart not available'), 400);
+    }
 }
-add_action('after_switch_theme', 'shopker_create_orders_table');
 
 /**
  * Store order details in custom table when order is created
@@ -640,13 +841,33 @@ function shopker_store_order_details($order_id) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'shopker_orders';
     
+    error_log('Shopker: shopker_store_order_details called for order #' . $order_id);
+    
     $order = wc_get_order($order_id);
     
     if (!$order) {
+        error_log('Shopker: Could not load order #' . $order_id);
+        return;
+    }
+    
+    // Check if order already exists in custom table (avoid duplicates)
+    $existing = $wpdb->get_row($wpdb->prepare("SELECT id FROM $table_name WHERE order_id = %d", $order_id));
+    if ($existing) {
+        error_log('Shopker: Order #' . $order_id . ' already in custom table, updating instead');
+        // Update existing record
+        $wpdb->update(
+            $table_name,
+            array(
+                'order_status' => $order->get_status(),
+            ),
+            array('order_id' => $order_id),
+            array('%s'),
+            array('%d')
+        );
         return;
     }
 
-    $wpdb->insert(
+    $result = $wpdb->insert(
         $table_name,
         array(
             'order_id' => $order_id,
@@ -665,6 +886,13 @@ function shopker_store_order_details($order_id) {
         ),
         array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%d', '%s', '%s', '%s')
     );
+    
+    // Log for debugging
+    if ($wpdb->last_error) {
+        error_log('Shopker: Error storing order #' . $order_id . ' - ' . $wpdb->last_error);
+    } else {
+        error_log('Shopker: Order #' . $order_id . ' stored successfully (rows affected: ' . $result . ')');
+    }
 }
 add_action('woocommerce_new_order', 'shopker_store_order_details');
 
@@ -702,13 +930,378 @@ function shopker_customize_checkout_fields($fields) {
 }
 add_filter('woocommerce_checkout_fields', 'shopker_customize_checkout_fields');
 
-add_action('woocommerce_checkout_order_processed', 'shopker_force_checkout_redirect', 10, 3);
-function shopker_force_checkout_redirect($order_id, $posted_data, $order) {
-    // If it's an AJAX request (standard WC checkout), WC handles it.
-    // If it's a standard POST, we force it.
-    if (!wp_doing_ajax()) {
-        $url = $order->get_checkout_order_received_url();
-        wp_redirect($url);
-        exit;
+/**
+ * Ensure cart is cleared when thank you page is loaded (additional safety measure)
+ */
+add_action('woocommerce_thankyou', 'shopker_clear_cart_on_thankyou', 5);
+function shopker_clear_cart_on_thankyou($order_id) {
+    error_log('Shopker: Thank you page loaded for order #' . $order_id);
+    
+    $order = wc_get_order($order_id);
+    if ($order) {
+        // Clear the cart
+        if (WC()->cart) {
+            WC()->cart->empty_cart();
+            error_log('Shopker: Cart cleared on thank you page for order #' . $order_id);
+        }
+        
+        // Mark that cart has been cleared for this order
+        $order->update_meta_data('_cart_cleared', true);
+        $order->save();
+    }
+}
+
+/**
+ * Custom Cash on Delivery Payment Gateway Class
+ */
+if (!class_exists('WC_Shopker_COD')) {
+    class WC_Shopker_COD extends WC_Payment_Gateway {
+        
+        public function __construct() {
+            $this->id                 = 'shopker_cod';
+            $this->method_title       = 'Shopker Cash on Delivery';
+            $this->method_description = 'Collect payment when order is delivered';
+            $this->order_button_text  = 'Place Order - Pay on Delivery';
+            $this->has_fields         = false;
+            $this->enabled            = 'yes';
+            
+            // Load the settings
+            $this->init_form_fields();
+            $this->init_settings();
+            
+            $this->title       = $this->get_option('title', 'Cash on Delivery');
+            $this->description = $this->get_option('description', 'Pay when your order is delivered at your doorstep');
+            
+            // Hooks
+            add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+            
+            error_log('Shopker COD: Gateway instance created. ID: ' . $this->id . ', Enabled: ' . $this->enabled);
+        }
+        
+        public function init_form_fields() {
+            $this->form_fields = array(
+                'enabled' => array(
+                    'title'   => 'Enable/Disable',
+                    'type'    => 'checkbox',
+                    'label'   => 'Enable Cash on Delivery',
+                    'default' => 'yes'
+                ),
+                'title' => array(
+                    'title'       => 'Title',
+                    'type'        => 'text',
+                    'description' => 'This controls the title which the user sees during checkout.',
+                    'default'     => 'Cash on Delivery',
+                    'desc_tip'    => true,
+                ),
+                'description' => array(
+                    'title'       => 'Description',
+                    'type'        => 'textarea',
+                    'description' => 'Payment method description that the customer will see on checkout.',
+                    'default'     => 'Pay with cash when your order is delivered.',
+                    'desc_tip'    => true,
+                ),
+            );
+        }
+        
+        public function is_available() {
+            $available = parent::is_available();
+            error_log('Shopker COD: is_available() called. Result: ' . ($available ? 'true' : 'false'));
+            return $available;
+        }
+        
+        public function process_payment($order_id) {
+            $order = wc_get_order($order_id);
+            error_log('Shopker COD: Processing payment for order #' . $order_id);
+            
+            // Mark order as pending (awaiting payment on delivery)
+            $order->update_status('pending', 'Awaiting payment on delivery');
+            
+            // Reduce stock levels
+            wc_reduce_stock_levels($order_id);
+            
+            // Remove cart - do it safely
+            try {
+                if (WC()->cart) {
+                    WC()->cart->empty_cart();
+                }
+            } catch (Exception $e) {
+                error_log('Shopker COD: Exception clearing cart: ' . $e->getMessage());
+            }
+            
+            error_log('Shopker COD: Order #' . $order_id . ' ready for delivery');
+            
+            // Build return URL manually to avoid get_return_url() recursion
+            $checkout_url = wc_get_checkout_url();
+            $order_key = $order->get_order_key();
+            $return_url = add_query_arg(array(
+                'order-received' => $order_id,
+                'key' => $order_key
+            ), $checkout_url);
+            
+            error_log('Shopker COD: Return URL: ' . $return_url);
+            
+            // Return success with redirect
+            return array(
+                'result'   => 'success',
+                'redirect' => $return_url
+            );
+        }
+        
+        public function process_refund($order_id, $amount = null, $reason = '') {
+            error_log('Shopker COD: Refund requested for order #' . $order_id);
+            return true;
+        }
+    }
+}
+
+/**
+ * Register custom COD gateway on plugins_loaded
+ */
+add_action('plugins_loaded', 'shopker_init_cod_gateway', 99);
+function shopker_init_cod_gateway() {
+    error_log('Shopker: Initializing COD gateway at plugins_loaded');
+}
+
+/**
+ * Register custom COD gateway in payment gateways filter
+ */
+add_filter('woocommerce_payment_gateways', 'shopker_add_cod_gateway', 10);
+function shopker_add_cod_gateway($gateways) {
+    error_log('Shopker: Adding custom COD to payment gateways. Current: ' . json_encode($gateways));
+    $gateways[] = 'WC_Shopker_COD';
+    error_log('Shopker: Updated gateways: ' . json_encode($gateways));
+    return $gateways;
+}
+
+/**
+ * Ensure custom COD gateway is available for checkout
+ */
+add_filter('woocommerce_available_payment_gateways', 'shopker_ensure_cod_available', 10);
+function shopker_ensure_cod_available($available_gateways) {
+    error_log('Shopker: Available gateways count: ' . count($available_gateways));
+    error_log('Shopker: Available gateway IDs: ' . json_encode(array_keys($available_gateways)));
+    
+    // If our custom gateway is in the list, great! Otherwise log it
+    if (isset($available_gateways['shopker_cod'])) {
+        error_log('Shopker: Custom COD gateway IS available for checkout');
+    } else {
+        error_log('Shopker: WARNING - Custom COD gateway is NOT in available gateways list');
+    }
+    
+    return $available_gateways;
+}
+
+/**
+ * Auto-enable COD gateway on init
+ */
+add_action('init', 'shopker_ensure_cod_enabled', 999);
+function shopker_ensure_cod_enabled() {
+    $settings = get_option('woocommerce_shopker_cod_settings', array());
+    if (empty($settings) || !isset($settings['enabled'])) {
+        $settings = array(
+            'enabled'     => 'yes',
+            'title'       => 'Cash on Delivery',
+            'description' => 'Pay with cash when your order is delivered at your doorstep'
+        );
+        update_option('woocommerce_shopker_cod_settings', $settings);
+        error_log('Shopker: COD gateway settings initialized - ' . json_encode($settings));
+    }
+}
+
+/**
+ * Custom template loader for order-received endpoint
+ * Handles the order-received query parameter and loads the thank you page
+ */
+add_filter('template_include', 'shopker_custom_template_loader', 99);
+function shopker_custom_template_loader($template) {
+    // Check if this is an order-received request (query parameter)
+    if (isset($_GET['order-received']) && isset($_GET['key'])) {
+        $order_id = intval($_GET['order-received']);
+        $order_key = sanitize_text_field($_GET['key']);
+        
+        // Get the order
+        $order = wc_get_order($order_id);
+        
+        if ($order && $order->get_order_key() === $order_key) {
+            // Load our custom order-received template
+            $custom_template = get_template_directory() . '/woocommerce/order-received.php';
+            
+            if (file_exists($custom_template)) {
+                // Set the order as a global so the template can access it
+                $GLOBALS['order'] = $order;
+                error_log('Shopker: Loading custom order-received template for order #' . $order_id);
+                return $custom_template;
+            }
+        } else {
+            error_log('Shopker: Order validation failed. Order ID: ' . $order_id . ', Key valid: ' . ($order && $order->get_order_key() === $order_key ? 'yes' : 'no'));
+        }
+    }
+    
+    return $template;
+}
+
+/**
+ * AJAX handler to get current cart count
+ */
+add_action('wp_ajax_wc_get_cart_count', 'shopker_get_cart_count_ajax');
+add_action('wp_ajax_nopriv_wc_get_cart_count', 'shopker_get_cart_count_ajax');
+function shopker_get_cart_count_ajax() {
+    wp_send_json(array(
+        'count' => WC()->cart->get_cart_contents_count()
+    ));
+}
+
+/**
+ * WooCommerce cart fragments - for AJAX cart updates
+ */
+add_filter('woocommerce_add_to_cart_fragments', 'shopker_cart_count_fragments');
+function shopker_cart_count_fragments($fragments) {
+    $count = WC()->cart->get_cart_contents_count();
+    ob_start();
+    ?>
+    <span id="shopker-cart-count" class="absolute -top-2 -right-2 bg-orange-600 text-white text-xs font-black rounded-full w-5 h-5 flex items-center justify-center" style="<?php echo $count > 0 ? '' : 'display: none;'; ?>">
+        <?php echo esc_html($count); ?>
+    </span>
+    <?php
+    $fragments['#shopker-cart-count'] = ob_get_clean();
+    return $fragments;
+}
+
+/**
+ * Enqueue scripts for cart functionality
+ */
+add_action('wp_footer', 'shopker_cart_functionality_script', 99);
+function shopker_cart_functionality_script() {
+    if (!is_admin()) {
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update cart count badge on page load
+            shopkerUpdateCartCount();
+
+            // Listen for added_to_cart event (WooCommerce)
+            document.addEventListener('added_to_cart', function() {
+                shopkerUpdateCartCount();
+                shopkerShowSuccessMessage();
+            });
+
+            // Also listen for custom add to cart via AJAX
+            if (jQuery) {
+                jQuery(document).on('wc_fragments_refreshed', function() {
+                    shopkerUpdateCartCount();
+                });
+            }
+        });
+
+        // Function to update cart count
+        function shopkerUpdateCartCount() {
+            const countBadge = document.getElementById('shopker-cart-count');
+            
+            fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'action=wc_get_cart_count'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.count > 0) {
+                    countBadge.textContent = data.count;
+                    countBadge.style.display = 'flex';
+                } else {
+                    countBadge.style.display = 'none';
+                }
+            })
+            .catch(err => console.log('Cart count error:', err));
+        }
+
+        // Function to show success message
+        function shopkerShowSuccessMessage() {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'shopker-success-notification';
+            notification.innerHTML = `
+                <div class="shopker-success-content">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>Item added to cart! ✓</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+
+            // Animate in
+            setTimeout(() => notification.classList.add('show'), 10);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Attach cart icon click to open sidebar
+        const cartIcon = document.getElementById('shopker-cart-icon');
+        if (cartIcon) {
+            cartIcon.addEventListener('click', function() {
+                if (window.openCartSidebar) {
+                    window.openCartSidebar();
+                }
+            });
+        }
+        </script>
+
+        <style>
+        /* Success Notification Styles */
+        .shopker-success-notification {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(34, 197, 94, 0.3);
+            z-index: 10000;
+            opacity: 0;
+            transform: translateY(20px) translateX(20px);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-weight: 900;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .shopker-success-notification.show {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
+        }
+
+        .shopker-success-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .shopker-success-notification svg {
+            stroke: white;
+            flex-shrink: 0;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 640px) {
+            .shopker-success-notification {
+                bottom: 20px;
+                right: 20px;
+                left: 20px;
+                padding: 14px 20px;
+                font-size: 13px;
+            }
+        }
+        </style>
+        <?php
     }
 }

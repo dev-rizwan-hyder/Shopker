@@ -64,7 +64,7 @@
                 <div class="relative">
                     <svg id="shopker-cart-icon" class="w-6 h-6 stroke-black hover:stroke-orange-600 cursor-pointer transition" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
                     <!-- Cart Badge Counter -->
-                    <span id="shopker-cart-count" class="absolute -top-2 -right-2 bg-orange-600 text-white text-xs font-black rounded-full w-5 h-5 flex items-center justify-center" style="display: none;">0</span>
+                    <span id="shopker-cart-count" class="absolute -top-2 -right-2 bg-orange-600 text-white text-xs font-black rounded-full w-5 h-5 flex items-center justify-center" style="display: none;"></span>
                 </div>
             </div>
 

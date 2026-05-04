@@ -113,7 +113,7 @@ do_action('woocommerce_before_cart');
                             ?>
 
                             <!-- Continue Shopping Button -->
-                            <div class="pt-6">
+                            <div class="pt-6 flex flex-col sm:flex-row gap-4">
                                 <a href="<?php echo esc_url(home_url('/shop')); ?>"
                                     class="inline-block px-8 py-4 border-2 border-[#FF6F00] text-[#FF6F00] rounded-xl font-black text-lg hover:bg-[#FF6F00] hover:text-white transition duration-300 transform hover:scale-105">
                                     ← CONTINUE SHOPPING

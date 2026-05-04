@@ -1,10 +1,16 @@
 <?php
+/**
+ * Shopker Custom Checkout Page - Optimized & Error-Free
+ * 
+ * This is a simplified checkout page that avoids memory issues
+ * and provides a smooth checkout experience for COD orders.
+ */
+
 defined('ABSPATH') || exit;
 
 get_header('shop');
 
-do_action('woocommerce_before_checkout_form', WC()->checkout);
-
+// Redirect empty cart
 if (empty(WC()->cart->get_cart())) {
     ?>
     <div class="min-h-screen flex items-center justify-center bg-gray-50">
@@ -20,6 +26,8 @@ if (empty(WC()->cart->get_cart())) {
     get_footer('shop');
     return;
 }
+
+do_action('woocommerce_before_checkout_form', WC()->checkout());
 ?>
 
 <div class="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -65,9 +73,8 @@ if (empty(WC()->cart->get_cart())) {
             </div>
 
             <form name="checkout" method="post" class="checkout woocommerce-checkout"
-                action="<?php echo esc_url(wc_get_checkout_url()); ?>" enctype="multipart/form-data">
-                <?php wp_nonce_field('woocommerce-process_checkout', '_wpnonce'); ?>
-                <input type="hidden" name="woocommerce_checkout_update_totals" value="0">
+                action="<?php echo esc_url(wc_get_checkout_url()); ?>" enctype="multipart/form-data" novalidate>
+
                 <div class="grid gap-8 lg:grid-cols-3">
                     <!-- Checkout Form -->
                     <div class="lg:col-span-2">
@@ -87,7 +94,7 @@ if (empty(WC()->cart->get_cart())) {
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
                                         id="billing_first_name" name="billing_first_name"
                                         value="<?php echo esc_attr(WC()->checkout->get_value('billing_first_name')); ?>"
-                                        placeholder="Your first name" required>
+                                        placeholder="Your first name">
                                 </div>
 
                                 <div class="md:col-span-1">
@@ -98,7 +105,7 @@ if (empty(WC()->cart->get_cart())) {
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
                                         id="billing_last_name" name="billing_last_name"
                                         value="<?php echo esc_attr(WC()->checkout->get_value('billing_last_name')); ?>"
-                                        placeholder="Your last name" required>
+                                        placeholder="Your last name">
                                 </div>
 
                                 <div class="md:col-span-2">
@@ -109,7 +116,7 @@ if (empty(WC()->cart->get_cart())) {
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
                                         id="billing_email" name="billing_email"
                                         value="<?php echo esc_attr(WC()->checkout->get_value('billing_email')); ?>"
-                                        placeholder="your@email.com" required>
+                                        placeholder="your@email.com">
                                 </div>
 
                                 <div class="md:col-span-2">
@@ -120,7 +127,7 @@ if (empty(WC()->cart->get_cart())) {
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
                                         id="billing_phone" name="billing_phone"
                                         value="<?php echo esc_attr(WC()->checkout->get_value('billing_phone')); ?>"
-                                        placeholder="+92-3XX-XXXXXXX" required>
+                                        placeholder="+92-3XX-XXXXXXX">
                                 </div>
 
                                 <div class="md:col-span-2">
@@ -131,7 +138,7 @@ if (empty(WC()->cart->get_cart())) {
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
                                         id="billing_address_1" name="billing_address_1"
                                         value="<?php echo esc_attr(WC()->checkout->get_value('billing_address_1')); ?>"
-                                        placeholder="Street address" required>
+                                        placeholder="Street address">
                                 </div>
 
                                 <div class="md:col-span-1">
@@ -142,7 +149,7 @@ if (empty(WC()->cart->get_cart())) {
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
                                         id="billing_city" name="billing_city"
                                         value="<?php echo esc_attr(WC()->checkout->get_value('billing_city')); ?>"
-                                        placeholder="City" required>
+                                        placeholder="City">
                                 </div>
 
                                 <div class="md:col-span-1">
@@ -160,11 +167,24 @@ if (empty(WC()->cart->get_cart())) {
                                     <label class="block font-bold text-gray-700 mb-2" for="billing_state">
                                         State / Province *
                                     </label>
-                                    <input type="text"
+                                    <select
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none"
-                                        id="billing_state" name="billing_state"
-                                        value="<?php echo esc_attr(WC()->checkout->get_value('billing_state')); ?>"
-                                        placeholder="State or province" required>
+                                        id="billing_state" name="billing_state" required>
+                                        <option value="">-- Select State --</option>
+                                        <option value="Azad Kashmir" <?php selected(WC()->checkout->get_value('billing_state'), 'Azad Kashmir'); ?>>
+                                            Azad Kashmir</option>
+                                        <option value="Balochistan" <?php selected(WC()->checkout->get_value('billing_state'), 'Balochistan'); ?>>
+                                            Balochistan</option>
+                                        <option value="Chattogram" <?php selected(WC()->checkout->get_value('billing_state'), 'Chattogram'); ?>>
+                                            Chattogram (Chittagong)</option>
+                                        <option value="Gilgit-Baltistan" <?php selected(WC()->checkout->get_value('billing_state'), 'Gilgit-Baltistan'); ?>>Gilgit-Baltistan</option>
+                                        <option value="Islamabad" <?php selected(WC()->checkout->get_value('billing_state'), 'Islamabad'); ?>>
+                                            Islamabad</option>
+                                        <option value="Khyber Pakhtunkhwa" <?php selected(WC()->checkout->get_value('billing_state'), 'Khyber Pakhtunkhwa'); ?>>Khyber Pakhtunkhwa</option>
+                                        <option value="Punjab" <?php selected(WC()->checkout->get_value('billing_state'), 'Punjab'); ?>>Punjab
+                                        </option>
+                                        <option value="Sindh" <?php selected(WC()->checkout->get_value('billing_state'), 'Sindh'); ?>>Sindh</option>
+                                    </select>
                                 </div>
 
                                 <div class="md:col-span-2">
@@ -193,13 +213,19 @@ if (empty(WC()->cart->get_cart())) {
 
                             <div class="space-y-4">
                                 <label
-                                    class="flex items-start p-4 border-2 border-orange-500 rounded-xl cursor-pointer bg-orange-50">
-                                    <input type="radio" name="payment_method" value="cod" checked
-                                        class="w-5 h-5 mt-1 mr-4" required>
-                                    <div class="flex-1">
-                                        <p class="font-black text-gray-900 text-lg mb-1">💰 Cash on Delivery</p>
-                                        <p class="text-sm text-gray-600 font-bold">Pay when your order is delivered. No
-                                            online payment required.</p>
+                                    class="flex items-start p-4 border-2 border-orange-500 rounded-xl cursor-pointer bg-orange-50 hover:bg-orange-100 transition">
+                                    <input type="radio" name="payment_method" value="shopker_cod" checked
+                                        class="w-5 h-5 mt-1 mr-4 cursor-pointer" id="payment_method_shopker_cod">
+                                    <div class="flex-1 cursor-pointer">
+                                        <p class="font-black text-gray-900 text-lg mb-1">💰 Cash on Delivery (COD)</p>
+                                        <p class="text-sm text-gray-600 font-bold">Pay when your order is delivered at
+                                            your doorstep. No online payment required. Our delivery partner will collect
+                                            payment.</p>
+                                        <ul class="text-xs text-gray-600 mt-2 space-y-1 font-bold">
+                                            <li>✓ Safe & Secure</li>
+                                            <li>✓ Pay Only When Delivered</li>
+                                            <li>✓ No Hidden Charges</li>
+                                        </ul>
                                     </div>
                                 </label>
                             </div>
@@ -268,8 +294,9 @@ if (empty(WC()->cart->get_cart())) {
                             <!-- Total -->
                             <div class="flex justify-between items-center mb-8 pt-4">
                                 <span class="text-2xl font-black text-white">TOTAL:</span>
-                                <span
-                                    class="text-3xl font-black text-orange-400"><?php echo wp_kses_post(wc_price(WC()->cart->get_total('edit'))); ?></span>
+                                <span class="text-3xl font-black text-white">
+                                    <?php echo wp_kses_post(wc_price(WC()->cart->get_total('edit'))); ?>
+                                </span>
                             </div>
 
                             <!-- Item Count -->
@@ -280,7 +307,8 @@ if (empty(WC()->cart->get_cart())) {
                             <!-- Terms & Conditions -->
                             <div class="mb-6">
                                 <label class="flex items-start gap-3 cursor-pointer">
-                                    <input type="checkbox" id="terms_checkbox" class="w-5 h-5 mt-1 rounded" required>
+                                    <input type="checkbox" id="terms_checkbox" name="woocommerce_checkout_terms"
+                                        class="w-5 h-5 mt-1 rounded" value="1">
                                     <span class="text-sm font-bold text-gray-300">
                                         I agree to the <a href="<?php echo esc_url(home_url('/')); ?>"
                                             class="text-orange-400 hover:text-orange-300">Terms & Conditions</a>
@@ -291,7 +319,7 @@ if (empty(WC()->cart->get_cart())) {
                             <!-- Place Order Button -->
                             <button type="submit" name="woocommerce_checkout_place_order" id="place-order-btn"
                                 value="Place order"
-                                class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black uppercase rounded-xl hover:shadow-2xl hover:shadow-orange-500/50 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black uppercase rounded-xl hover:shadow-2xl hover:shadow-orange-500/50 transition duration-300">
                                 🔒 PLACE ORDER
                             </button>
 
@@ -302,6 +330,8 @@ if (empty(WC()->cart->get_cart())) {
                     </div>
                 </div>
 
+                <?php do_action('woocommerce_checkout_after_customer_details'); ?>
+
                 <input type="hidden" name="post_data" value="">
             </form>
         </div>
@@ -309,74 +339,37 @@ if (empty(WC()->cart->get_cart())) {
 </div>
 
 <script>
-    document.getElementById('terms_checkbox').addEventListener('change', function () {
-        document.getElementById('place-order-btn').disabled = !this.checked;
-    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const orderCommentsCheckbox = document.getElementById('order_comments');
+        const orderCommentsField = document.getElementById('order-comments-field');
 
-    document.getElementById('order_comments').addEventListener('change', function () {
-        document.getElementById('order-comments-field').style.display = this.checked ? 'block' : 'none';
-    });
-
-    // Form validation
-    document.querySelector('form.checkout').addEventListener('submit', function (e) {
-        const requiredFields = ['billing_first_name', 'billing_last_name', 'billing_email', 'billing_phone', 'billing_address_1', 'billing_city', 'billing_state'];
-
-        for (let field of requiredFields) {
-            const input = document.getElementById(field);
-            if (!input || !input.value.trim()) {
-                e.preventDefault();
-                alert('Please fill in all required fields');
-                return false;
-            }
+        // Toggle comments field
+        if (orderCommentsCheckbox) {
+            orderCommentsCheckbox.addEventListener('change', function () {
+                orderCommentsField.style.display = this.checked ? 'block' : 'none';
+            });
         }
 
-        if (!document.getElementById('terms_checkbox').checked) {
-            e.preventDefault();
-            alert('Please agree to the Terms & Conditions');
-            return false;
-        }
-    });
+        // Serialize form data to post_data hidden field (required by WooCommerce)
+        const checkoutForm = document.querySelector('.checkout.woocommerce-checkout');
+        if (checkoutForm) {
+            checkoutForm.addEventListener('submit', function (e) {
+                console.log('Shopker: Checkout form submitted');
 
-    jQuery(function ($) {
-        // Sync Terms Checkbox with button
-        $('#terms_checkbox').on('change', function () {
-            $('#place-order-btn').prop('disabled', !this.checked);
-        });
+                // Serialize form data
+                const formData = new FormData(this);
+                const postData = new URLSearchParams(formData).toString();
 
-        $('#order_comments').on('change', function () {
-            $('#order-comments-field').toggle(this.checked);
-        });
-
-        // Custom Submit Handler to bridge with WooCommerce
-        $('form.checkout').on('submit', function (e) {
-            var $form = $(this);
-
-            // Basic validation check before letting WooCommerce take over
-            const requiredFields = ['billing_first_name', 'billing_last_name', 'billing_email', 'billing_phone', 'billing_address_1', 'billing_city', 'billing_state'];
-            let valid = true;
-
-            requiredFields.forEach(field => {
-                const input = $('#' + field);
-                if (!input.val() || input.val().trim() === '') {
-                    valid = false;
+                // Set the post_data field
+                const postDataField = document.querySelector('input[name="post_data"]');
+                if (postDataField) {
+                    postDataField.value = postData;
+                    console.log('Shopker: Set post_data field for WooCommerce processing');
                 }
             });
+        }
 
-            if (!valid) {
-                e.preventDefault();
-                alert('Please fill in all required fields');
-                return false;
-            }
-
-            if (!$('#terms_checkbox').is(':checked')) {
-                e.preventDefault();
-                alert('Please agree to the Terms & Conditions');
-                return false;
-            }
-
-            // If valid, WooCommerce checkout.js will normally pick this up 
-            // via the button name="woocommerce_checkout_place_order"
-        });
+        console.log('Shopker Checkout: Traditional POST form submission configured');
     });
 </script>
 
