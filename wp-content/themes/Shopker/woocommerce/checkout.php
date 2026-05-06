@@ -241,29 +241,43 @@ do_action('woocommerce_before_checkout_form', WC()->checkout());
 
                     <!-- Order Summary Sidebar -->
                     <div class="lg:col-span-1 h-fit lg:sticky lg:top-10">
-                        <div class="bg-gradient-to-br from-gray-900 to-black text-white rounded-2xl p-8 shadow-2xl">
+                        <div class="bg-gradient-to-br from-gray-900 to-black text-white rounded-3xl p-8 shadow-2xl border border-gray-800">
                             <h3 class="text-2xl font-black mb-6 flex items-center gap-2">
                                 <span class="text-3xl">📦</span>
                                 ORDER SUMMARY
                             </h3>
 
-                            <!-- Order Items -->
-                            <div class="space-y-3 mb-6 pb-6 border-b border-gray-700">
+                            <!-- Item Count Badge -->
+                            <div class="mb-6 inline-block px-4 py-2 bg-orange-600 rounded-full">
+                                <p class="text-sm font-black">🛍️ <?php echo WC()->cart->get_cart_contents_count(); ?> Item<?php echo WC()->cart->get_cart_contents_count() !== 1 ? 's' : ''; ?></p>
+                            </div>
+
+                            <!-- Order Items with Images -->
+                            <div class="space-y-4 mb-8 pb-8 border-b border-gray-700">
                                 <?php
                                 foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item):
                                     $_product = apply_filters('woocommerce_cart_item_product', $cart_item['data'], $cart_item, $cart_item_key);
                                     if ($_product && $_product->exists() && $cart_item['quantity'] > 0):
+                                        $product_image = wp_get_attachment_image_url($_product->get_image_id(), 'thumbnail');
                                         ?>
-                                        <div class="flex justify-between items-start text-sm">
-                                            <div>
-                                                <p class="font-bold"><?php echo wp_kses_post($_product->get_name()); ?></p>
-                                                <p class="text-xs text-gray-400">Qty:
-                                                    <?php echo esc_html($cart_item['quantity']); ?>
+                                        <div class="flex gap-4 pb-4 border-b border-gray-800 last:border-b-0 last:pb-0">
+                                            <!-- Product Image -->
+                                            <div class="w-16 h-16 flex-shrink-0 bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
+                                                <?php if ($product_image) : ?>
+                                                    <img src="<?php echo esc_url($product_image); ?>" alt="<?php echo esc_attr($_product->get_name()); ?>" class="w-full h-full object-cover">
+                                                <?php else : ?>
+                                                    <span class="text-2xl">📦</span>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <!-- Product Details -->
+                                            <div class="flex-1 min-w-0">
+                                                <p class="font-bold text-sm text-white truncate"><?php echo wp_kses_post($_product->get_name()); ?></p>
+                                                <p class="text-xs text-gray-400 mt-1">Qty: <span class="font-black text-orange-400"><?php echo esc_html($cart_item['quantity']); ?></span></p>
+                                                <p class="text-sm font-black text-orange-400 mt-1">
+                                                    <?php echo wp_kses_post(wc_price($cart_item['line_total'])); ?>
                                                 </p>
                                             </div>
-                                            <p class="font-black text-orange-400">
-                                                <?php echo wp_kses_post(wc_price($cart_item['line_total'])); ?>
-                                            </p>
                                         </div>
                                         <?php
                                     endif;
@@ -271,47 +285,45 @@ do_action('woocommerce_before_checkout_form', WC()->checkout());
                                 ?>
                             </div>
 
-                            <!-- Pricing Details -->
-                            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-700">
-                                <span class="font-bold text-gray-300">Subtotal:</span>
-                                <span
-                                    class="text-xl font-black text-orange-400"><?php echo wp_kses_post(wc_price(WC()->cart->get_subtotal())); ?></span>
-                            </div>
-
-                            <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-700">
-                                <span class="font-bold text-gray-300">Shipping:</span>
-                                <span class="text-xl font-black text-green-400">FREE ✓</span>
-                            </div>
-
-                            <?php if (wc_tax_enabled()): ?>
-                                <div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-700">
-                                    <span class="font-bold text-gray-300">Tax:</span>
-                                    <span
-                                        class="text-xl font-black text-orange-400"><?php echo wp_kses_post(wc_price(WC()->cart->get_total_tax())); ?></span>
+                            <!-- Pricing Breakdown -->
+                            <div class="space-y-3 mb-6">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-300">Subtotal</span>
+                                    <span class="text-lg font-black text-orange-400"><?php echo wp_kses_post(wc_price(WC()->cart->get_subtotal())); ?></span>
                                 </div>
-                            <?php endif; ?>
 
-                            <!-- Total -->
-                            <div class="flex justify-between items-center mb-8 pt-4">
-                                <span class="text-2xl font-black text-white">TOTAL:</span>
-                                <span class="text-3xl font-black text-white">
-                                    <?php echo wp_kses_post(wc_price(WC()->cart->get_total('edit'))); ?>
-                                </span>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-300">Shipping</span>
+                                    <span class="text-lg font-black text-green-400">FREE ✓</span>
+                                </div>
+
+                                <?php if (wc_tax_enabled()): ?>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-300">Tax</span>
+                                        <span class="text-lg font-black text-orange-400"><?php echo wp_kses_post(wc_price(WC()->cart->get_total_tax())); ?></span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
-                            <!-- Item Count -->
-                            <div class="mb-6 text-center text-sm font-bold text-gray-400">
-                                <p><?php echo WC()->cart->get_cart_contents_count(); ?> Item(s)</p>
+                            <!-- Total Section -->
+                            <div class="bg-gradient-to-r from-orange-600 to-orange-500 rounded-2xl p-4 mb-8">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-lg font-black">ORDER TOTAL</span>
+                                    <span class="text-3xl font-black">
+                                        <?php echo wp_kses_post(wc_price(WC()->cart->get_total('edit'))); ?>
+                                    </span>
+                                </div>
                             </div>
 
-                            <!-- Terms & Conditions -->
-                            <div class="mb-6">
+                            <!-- Terms Checkbox -->
+                            <div class="mb-6 p-4 bg-gray-800 rounded-xl">
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="checkbox" id="terms_checkbox" name="woocommerce_checkout_terms"
-                                        class="w-5 h-5 mt-1 rounded" value="1">
-                                    <span class="text-sm font-bold text-gray-300">
+                                        class="w-5 h-5 mt-0.5 rounded accent-orange-500" value="1" required>
+                                    <span class="text-xs font-bold text-gray-300 leading-relaxed">
                                         I agree to the <a href="<?php echo esc_url(home_url('/')); ?>"
-                                            class="text-orange-400 hover:text-orange-300">Terms & Conditions</a>
+                                            class="text-orange-400 hover:text-orange-300 underline">Terms & Conditions</a> and <a href="<?php echo esc_url(home_url('/')); ?>"
+                                            class="text-orange-400 hover:text-orange-300 underline">Privacy Policy</a>
                                     </span>
                                 </label>
                             </div>
@@ -319,13 +331,30 @@ do_action('woocommerce_before_checkout_form', WC()->checkout());
                             <!-- Place Order Button -->
                             <button type="submit" name="woocommerce_checkout_place_order" id="place-order-btn"
                                 value="Place order"
-                                class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black uppercase rounded-xl hover:shadow-2xl hover:shadow-orange-500/50 transition duration-300">
+                                class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black uppercase rounded-xl hover:shadow-2xl hover:shadow-orange-500/50 transition duration-300 transform hover:scale-105 text-center">
                                 🔒 PLACE ORDER
                             </button>
 
-                            <p class="text-xs text-gray-400 text-center mt-4">
-                                You will receive an order confirmation via email
+                            <p class="text-xs text-gray-400 text-center mt-4 leading-relaxed">
+                                ✓ Secure checkout with payment on delivery<br>
+                                ✓ Order confirmation sent to your email
                             </p>
+
+                            <!-- Trust Badges -->
+                            <div class="mt-6 pt-6 border-t border-gray-700 space-y-3">
+                                <div class="flex items-start gap-2 text-xs">
+                                    <span class="text-lg flex-shrink-0">🔒</span>
+                                    <span class="text-gray-400"><span class="text-orange-400 font-bold">Secure</span> - Your data is encrypted</span>
+                                </div>
+                                <div class="flex items-start gap-2 text-xs">
+                                    <span class="text-lg flex-shrink-0">✅</span>
+                                    <span class="text-gray-400"><span class="text-orange-400 font-bold">Guaranteed</span> - Money back if unsatisfied</span>
+                                </div>
+                                <div class="flex items-start gap-2 text-xs">
+                                    <span class="text-lg flex-shrink-0">🚀</span>
+                                    <span class="text-gray-400"><span class="text-orange-400 font-bold">Fast</span> - Quick delivery across Pakistan</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

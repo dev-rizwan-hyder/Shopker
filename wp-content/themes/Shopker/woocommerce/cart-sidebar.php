@@ -66,12 +66,6 @@ defined('ABSPATH') || exit;
         <p><?php echo WC()->cart->get_cart_contents_count(); ?> Item(s)</p>
     </div>
 
-    <!-- Proceed to Checkout Button -->
-    <a href="<?php echo esc_url(wc_get_checkout_url()); ?>" 
-       class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black uppercase rounded-xl hover:shadow-2xl hover:shadow-orange-500/50 transition duration-300 transform hover:scale-105 block text-center mb-3">
-        🔒 PROCEED TO CHECKOUT
-    </a>
-
     <!-- Continue Shopping Link -->
     <a href="<?php echo esc_url(home_url('/shop')); ?>" 
        class="w-full py-3 border-2 border-gray-600 text-gray-300 font-black uppercase rounded-xl hover:border-orange-500 hover:text-orange-400 transition text-center block">

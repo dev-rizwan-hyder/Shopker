@@ -523,6 +523,492 @@ function shopker_save_tier_pricing_product_data( $product )
 }
 add_action( 'woocommerce_admin_process_product_object', 'shopker_save_tier_pricing_product_data' );
 
+function shopker_enqueue_product_media_admin_scripts( $hook )
+{
+    if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+        return;
+    }
+
+    $screen = get_current_screen();
+    if ( ! $screen || 'product' !== $screen->post_type ) {
+        return;
+    }
+
+    wp_enqueue_media();
+}
+add_action( 'admin_enqueue_scripts', 'shopker_enqueue_product_media_admin_scripts' );
+
+function shopker_add_product_media_product_data_tab( $tabs )
+{
+    $tabs['shopker_product_media'] = array(
+        'label'    => esc_html__( 'Product Media', 'shopker' ),
+        'target'   => 'shopker_product_media_product_data',
+        'class'    => array( 'show_if_simple', 'show_if_variable' ),
+        'priority' => 91,
+    );
+
+    return $tabs;
+}
+add_filter( 'woocommerce_product_data_tabs', 'shopker_add_product_media_product_data_tab' );
+
+function shopker_get_product_video_ids( $product_id )
+{
+    $videos = get_post_meta( $product_id, '_shopker_product_videos', true );
+
+    if ( is_string( $videos ) ) {
+        $videos = explode( ',', $videos );
+    }
+
+    if ( ! is_array( $videos ) ) {
+        return array();
+    }
+
+    $video_ids = array();
+
+    foreach ( $videos as $video ) {
+        if ( is_numeric( $video ) ) {
+            $video_id = absint( $video );
+            if ( $video_id > 0 ) {
+                $video_ids[] = $video_id;
+            }
+        } elseif ( is_string( $video ) && '' !== trim( $video ) ) {
+            $video_ids[] = trim( $video );
+        }
+    }
+
+    return array_values( $video_ids );
+}
+
+function shopker_render_product_media_product_data_panel()
+{
+    global $post;
+
+    $video_ids = shopker_get_product_video_ids( $post->ID );
+    ?>
+    <div id="shopker_product_media_product_data" class="panel woocommerce_options_panel hidden">
+        <div class="options_group">
+            <?php wp_nonce_field( 'shopker_save_product_videos', 'shopker_product_videos_nonce' ); ?>
+            <p class="form-field">
+                <strong><?php esc_html_e( 'Product Videos', 'shopker' ); ?></strong>
+            </p>
+            <p class="form-field description">
+                <?php esc_html_e( 'Upload or select multiple product videos. These videos will display on the single product page.', 'shopker' ); ?>
+            </p>
+
+            <table class="widefat striped" id="shopker-product-videos-table">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'Preview', 'shopker' ); ?></th>
+                        <th><?php esc_html_e( 'Video', 'shopker' ); ?></th>
+                        <th><?php esc_html_e( 'Action', 'shopker' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $video_ids as $video_id ) : ?>
+                        <?php
+                        $attachment_url = is_numeric( $video_id ) ? wp_get_attachment_url( $video_id ) : esc_url_raw( $video_id );
+                        $mime_type      = is_numeric( $video_id ) ? get_post_mime_type( $video_id ) : 'video/mp4';
+                        ?>
+                        <tr class="shopker-product-video-row">
+                            <td class="video-preview">
+                                <?php if ( ! empty( $attachment_url ) ) : ?>
+                                    <video width="320" height="180" controls preload="metadata" src="<?php echo esc_url( $attachment_url ); ?>"></video>
+                                <?php else : ?>
+                                    <span class="description"><?php esc_html_e( 'No video selected.', 'shopker' ); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <input type="hidden" name="shopker_product_videos[]" class="shopker-product-video-id" value="<?php echo esc_attr( $video_id ); ?>" />
+                                <button type="button" class="button shopker-select-product-video">
+                                    <?php esc_html_e( 'Change Video', 'shopker' ); ?>
+                                </button>
+                            </td>
+                            <td>
+                                <button type="button" class="button shopker-remove-product-video"><?php esc_html_e( 'Remove', 'shopker' ); ?></button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 12px;">
+                <button type="button" class="button button-primary" id="shopker-add-product-video-row"><?php esc_html_e( 'Add Video', 'shopker' ); ?></button>
+            </p>
+
+            <script type="text/template" id="shopker-product-video-row-template">
+                <tr class="shopker-product-video-row">
+                    <td class="video-preview"><span class="description"><?php echo esc_html__( 'No video selected.', 'shopker' ); ?></span></td>
+                    <td>
+                        <input type="hidden" name="shopker_product_videos[]" class="shopker-product-video-id" value="" />
+                        <button type="button" class="button shopker-select-product-video"><?php echo esc_html__( 'Select Video', 'shopker' ); ?></button>
+                    </td>
+                    <td>
+                        <button type="button" class="button shopker-remove-product-video"><?php esc_html_e( 'Remove', 'shopker' ); ?></button>
+                    </td>
+                </tr>
+            </script>
+
+            <script>
+                jQuery(function($) {
+                    var mediaFrame;
+                    var currentRow;
+
+                    function openVideoFrame( $row ) {
+                        currentRow = $row;
+
+                        if ( mediaFrame ) {
+                            mediaFrame.open();
+                            return;
+                        }
+
+                        mediaFrame = wp.media({
+                            title: '<?php echo esc_js( __( 'Select product video', 'shopker' ) ); ?>',
+                            library: {
+                                type: 'video'
+                            },
+                            button: {
+                                text: '<?php echo esc_js( __( 'Use this video', 'shopker' ) ); ?>'
+                            },
+                            multiple: false
+                        });
+
+                        mediaFrame.on( 'select', function() {
+                            var attachment = mediaFrame.state().get('selection').first().toJSON();
+
+                            if ( ! attachment || ! attachment.id ) {
+                                return;
+                            }
+
+                            var $preview = $row.find('.video-preview');
+                            var videoUrl = attachment.url || attachment.source_url || '';
+                            var mimeType = attachment.mime || 'video/mp4';
+                            var filename = attachment.filename || ( videoUrl ? videoUrl.split('/').pop() : 'Video' );
+
+                            $row.find('.shopker-product-video-id').val( attachment.id );
+                            $row.find('.shopker-select-product-video').text('<?php echo esc_js( __( 'Change Video', 'shopker' ) ); ?>');
+
+                            $preview.html(
+                                '<video width="320" height="180" controls preload="metadata" src="' + videoUrl + '"></video>' +
+                                '<p class="shopker-product-video-filename" style="margin:0.5rem 0 0; font-size: 12px; color: #555;">' + filename + '</p>'
+                            );
+                        });
+
+                        mediaFrame.open();
+                    }
+
+                    $('#shopker-add-product-video-row').on('click', function( event ) {
+                        event.preventDefault();
+                        $('#shopker-product-videos-table tbody').append($('#shopker-product-video-row-template').html());
+                    });
+
+                    $(document).on('click', '.shopker-select-product-video', function( event ) {
+                        event.preventDefault();
+                        var $row = $(this).closest('tr');
+                        openVideoFrame( $row );
+                    });
+
+                    $(document).on('click', '.shopker-remove-product-video', function( event ) {
+                        event.preventDefault();
+                        $(this).closest('tr').remove();
+                    });
+                });
+            </script>
+        </div>
+    </div>
+    <?php
+}
+add_action( 'woocommerce_product_data_panels', 'shopker_render_product_media_product_data_panel' );
+
+function shopker_save_product_videos_product_data( $product )
+{
+    if ( ! isset( $_POST['shopker_product_videos_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['shopker_product_videos_nonce'] ), 'shopker_save_product_videos' ) ) {
+        return;
+    }
+
+    if ( empty( $_POST['shopker_product_videos'] ) || ! is_array( $_POST['shopker_product_videos'] ) ) {
+        $product->delete_meta_data( '_shopker_product_videos' );
+        return;
+    }
+
+    $video_ids = array();
+
+    foreach ( wp_unslash( $_POST['shopker_product_videos'] ) as $video_id ) {
+        $video_id = trim( $video_id );
+
+        if ( '' === $video_id ) {
+            continue;
+        }
+
+        if ( is_numeric( $video_id ) ) {
+            $video_id = absint( $video_id );
+            if ( $video_id > 0 ) {
+                $video_ids[] = $video_id;
+            }
+            continue;
+        }
+
+        $video_ids[] = esc_url_raw( $video_id );
+    }
+
+    if ( ! empty( $video_ids ) ) {
+        $product->update_meta_data( '_shopker_product_videos', array_values( $video_ids ) );
+    } else {
+        $product->delete_meta_data( '_shopker_product_videos' );
+    }
+}
+add_action( 'woocommerce_admin_process_product_object', 'shopker_save_product_videos_product_data' );
+
+function shopker_get_color_variants_meta( $product_id ) {
+    $variants = get_post_meta( $product_id, '_shopker_color_variants', true );
+
+    if ( ! is_array( $variants ) ) {
+        return array();
+    }
+
+    $clean_variants = array();
+    foreach ( $variants as $variant ) {
+        if ( empty( $variant['label'] ) ) {
+            continue;
+        }
+
+        $clean_variants[] = array(
+            'label'    => sanitize_text_field( $variant['label'] ),
+            'hex'      => isset( $variant['hex'] ) ? sanitize_text_field( $variant['hex'] ) : '',
+            'image_id' => isset( $variant['image_id'] ) ? absint( $variant['image_id'] ) : 0,
+        );
+    }
+
+    return array_values( $clean_variants );
+}
+
+function shopker_add_color_variant_product_data_tab( $tabs ) {
+    $tabs['shopker_color_variants'] = array(
+        'label'    => esc_html__( 'Color Variants', 'shopker' ),
+        'target'   => 'shopker_color_variants_product_data',
+        'class'    => array( 'show_if_simple', 'show_if_variable' ),
+        'priority' => 92,
+    );
+
+    return $tabs;
+}
+add_filter( 'woocommerce_product_data_tabs', 'shopker_add_color_variant_product_data_tab' );
+
+function shopker_render_color_variant_product_data_panel() {
+    global $post;
+
+    $variants = shopker_get_color_variants_meta( $post->ID );
+    if ( empty( $variants ) ) {
+        $variants = array(
+            array(
+                'label'    => '',
+                'hex'      => '',
+                'image_id' => 0,
+            ),
+        );
+    }
+    ?>
+    <div id="shopker_color_variants_product_data" class="panel woocommerce_options_panel hidden">
+        <div class="options_group">
+            <?php wp_nonce_field( 'shopker_save_color_variants', 'shopker_color_variants_nonce' ); ?>
+            <p class="form-field">
+                <strong><?php esc_html_e( 'Color variants', 'shopker' ); ?></strong>
+            </p>
+            <p class="form-field description">
+                <?php esc_html_e( 'Add color variants with an optional swatch image for display on the product page.', 'shopker' ); ?>
+            </p>
+
+            <table class="widefat striped" id="shopker-color-variants-table">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e( 'Label', 'shopker' ); ?></th>
+                        <th><?php esc_html_e( 'Color', 'shopker' ); ?></th>
+                        <th><?php esc_html_e( 'Image', 'shopker' ); ?></th>
+                        <th><?php esc_html_e( 'Action', 'shopker' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $variants as $index => $variant ) : ?>
+                        <tr>
+                            <td>
+                                <input type="text" name="shopker_color_variants[<?php echo esc_attr( $index ); ?>][label]" value="<?php echo esc_attr( $variant['label'] ); ?>" class="widefat" placeholder="<?php esc_attr_e( 'Red / Black', 'shopker' ); ?>" />
+                            </td>
+                            <td>
+                                <input type="text" name="shopker_color_variants[<?php echo esc_attr( $index ); ?>][hex]" value="<?php echo esc_attr( $variant['hex'] ); ?>" class="widefat" placeholder="#FF0000" />
+                            </td>
+                            <td>
+                                <input type="hidden" name="shopker_color_variants[<?php echo esc_attr( $index ); ?>][image_id]" class="shopker-color-variant-image-id" value="<?php echo esc_attr( $variant['image_id'] ); ?>" />
+                                <img src="<?php echo esc_url( $variant['image_id'] ? wp_get_attachment_image_url( $variant['image_id'], 'thumbnail' ) : '' ); ?>" alt="" class="shopker-color-variant-image-preview" style="max-width:80px;<?php echo $variant['image_id'] ? '' : 'display:none;'; ?>" />
+                                <button type="button" class="button shopker-select-color-variant-image"><?php esc_html_e( 'Select Image', 'shopker' ); ?></button>
+                            </td>
+                            <td>
+                                <button type="button" class="button shopker-remove-color-variant-row"><?php esc_html_e( 'Remove', 'shopker' ); ?></button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 12px;">
+                <button type="button" class="button button-primary" id="shopker-add-color-variant-row"><?php esc_html_e( 'Add Color Variant', 'shopker' ); ?></button>
+            </p>
+
+            <script type="text/template" id="shopker-color-variant-row-template">
+                <tr>
+                    <td>
+                        <input type="text" name="shopker_color_variants[__INDEX__][label]" value="" class="widefat" placeholder="<?php echo esc_js( __( 'Red / Black', 'shopker' ) ); ?>" />
+                    </td>
+                    <td>
+                        <input type="text" name="shopker_color_variants[__INDEX__][hex]" value="" class="widefat" placeholder="#FF0000" />
+                    </td>
+                    <td>
+                        <input type="hidden" name="shopker_color_variants[__INDEX__][image_id]" class="shopker-color-variant-image-id" value="" />
+                        <img src="" alt="" class="shopker-color-variant-image-preview" style="max-width:80px;display:none;" />
+                        <button type="button" class="button shopker-select-color-variant-image"><?php echo esc_js( __( 'Select Image', 'shopker' ) ); ?></button>
+                    </td>
+                    <td>
+                        <button type="button" class="button shopker-remove-color-variant-row"><?php echo esc_js( __( 'Remove', 'shopker' ) ); ?></button>
+                    </td>
+                </tr>
+            </script>
+
+            <script>
+                jQuery(function($) {
+                    var mediaFrame;
+                    var currentRow;
+                    var rowIndex = $('#shopker-color-variants-table tbody tr').length;
+
+                    function openColorVariantFrame( row ) {
+                        currentRow = row;
+
+                        if ( mediaFrame ) {
+                            mediaFrame.open();
+                            return;
+                        }
+
+                        mediaFrame = wp.media({
+                            title: '<?php echo esc_js( __( 'Select color variant image', 'shopker' ) ); ?>',
+                            library: {
+                                type: 'image'
+                            },
+                            button: {
+                                text: '<?php echo esc_js( __( 'Use Image', 'shopker' ) ); ?>'
+                            },
+                            multiple: false
+                        });
+
+                        mediaFrame.on( 'select', function() {
+                            var attachment = mediaFrame.state().get('selection').first().toJSON();
+                            if ( ! attachment || ! attachment.id ) {
+                                return;
+                            }
+
+                            currentRow.find('.shopker-color-variant-image-id').val( attachment.id );
+                            currentRow.find('.shopker-color-variant-image-preview').attr('src', attachment.url ).show();
+                        });
+
+                        mediaFrame.open();
+                    }
+
+                    $('#shopker-add-color-variant-row').on('click', function( event ) {
+                        event.preventDefault();
+                        var template = $('#shopker-color-variant-row-template').html().replace(/__INDEX__/g, rowIndex++);
+                        $('#shopker-color-variants-table tbody').append( template );
+                    });
+
+                    $(document).on('click', '.shopker-select-color-variant-image', function( event ) {
+                        event.preventDefault();
+                        openColorVariantFrame( $(this).closest('tr') );
+                    });
+
+                    $(document).on('click', '.shopker-remove-color-variant-row', function( event ) {
+                        event.preventDefault();
+                        $(this).closest('tr').remove();
+                    });
+                });
+            </script>
+        </div>
+    </div>
+    <?php
+}
+add_action( 'woocommerce_product_data_panels', 'shopker_render_color_variant_product_data_panel' );
+
+function shopker_save_color_variant_product_data( $product ) {
+    if ( ! isset( $_POST['shopker_color_variants_nonce'] ) || ! wp_verify_nonce( wp_unslash( $_POST['shopker_color_variants_nonce'] ), 'shopker_save_color_variants' ) ) {
+        return;
+    }
+
+    if ( empty( $_POST['shopker_color_variants'] ) || ! is_array( $_POST['shopker_color_variants'] ) ) {
+        $product->delete_meta_data( '_shopker_color_variants' );
+        return;
+    }
+
+    $variants = array();
+    foreach ( wp_unslash( $_POST['shopker_color_variants'] ) as $variant ) {
+        $label = isset( $variant['label'] ) ? sanitize_text_field( $variant['label'] ) : '';
+        if ( '' === $label ) {
+            continue;
+        }
+
+        $hex      = isset( $variant['hex'] ) ? sanitize_text_field( $variant['hex'] ) : '';
+        $image_id = isset( $variant['image_id'] ) ? absint( $variant['image_id'] ) : 0;
+
+        $variants[] = array(
+            'label'    => $label,
+            'hex'      => $hex,
+            'image_id' => $image_id,
+        );
+    }
+
+    if ( ! empty( $variants ) ) {
+        $product->update_meta_data( '_shopker_color_variants', array_values( $variants ) );
+    } else {
+        $product->delete_meta_data( '_shopker_color_variants' );
+    }
+}
+add_action( 'woocommerce_admin_process_product_object', 'shopker_save_color_variant_product_data' );
+
+function shopker_render_product_video( $product )
+{
+    if ( ! is_a( $product, 'WC_Product' ) ) {
+        return '';
+    }
+
+    $video_ids = shopker_get_product_video_ids( $product->get_id() );
+
+    if ( empty( $video_ids ) ) {
+        return '';
+    }
+
+    ob_start();
+    ?>
+    <div class="shopker-product-videos mt-4 space-y-4">
+        <?php foreach ( $video_ids as $video_id ) : ?>
+            <?php
+            if ( is_numeric( $video_id ) ) {
+                $video_url  = wp_get_attachment_url( $video_id );
+                $mime_type  = get_post_mime_type( $video_id );
+            } else {
+                $video_url  = esc_url_raw( $video_id );
+                $mime_type  = 'video/mp4';
+            }
+
+            if ( empty( $video_url ) ) {
+                continue;
+            }
+            ?>
+            <div class="shopker-product-video-wrapper rounded-2xl overflow-hidden border border-gray-100 bg-black">
+                <video controls preload="metadata" class="w-full h-auto">
+                    <source src="<?php echo esc_url( $video_url ); ?>" type="<?php echo esc_attr( $mime_type ); ?>" />
+                    <?php esc_html_e( 'Your browser does not support HTML5 video.', 'shopker' ); ?>
+                </video>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php
+
+    return ob_get_clean();
+}
+
 function shopker_render_tier_pricing_table()
 {
     global $product;
@@ -586,6 +1072,10 @@ function shopker_store_base_price_in_cart_item_data( $cart_item_data, $product_i
         $cart_item_data['shopker_base_price'] = (float) $product->get_price();
     }
 
+    if ( isset( $_REQUEST['shopker_color_variant'] ) && ! empty( $_REQUEST['shopker_color_variant'] ) ) {
+        $cart_item_data['shopker_color_variant'] = sanitize_text_field( wp_unslash( $_REQUEST['shopker_color_variant'] ) );
+    }
+
     return $cart_item_data;
 }
 add_filter( 'woocommerce_add_cart_item_data', 'shopker_store_base_price_in_cart_item_data', 10, 3 );
@@ -596,9 +1086,25 @@ function shopker_restore_base_price_from_session( $cart_item, $values )
         $cart_item['shopker_base_price'] = $values['shopker_base_price'];
     }
 
+    if ( isset( $values['shopker_color_variant'] ) ) {
+        $cart_item['shopker_color_variant'] = $values['shopker_color_variant'];
+    }
+
     return $cart_item;
 }
 add_filter( 'woocommerce_get_cart_item_from_session', 'shopker_restore_base_price_from_session', 10, 2 );
+
+function shopker_display_color_variant_cart_item_data( $item_data, $cart_item ) {
+    if ( ! empty( $cart_item['shopker_color_variant'] ) ) {
+        $item_data[] = array(
+            'key'   => esc_html__( 'Color', 'shopker' ),
+            'value' => esc_html( $cart_item['shopker_color_variant'] ),
+        );
+    }
+
+    return $item_data;
+}
+add_filter( 'woocommerce_get_item_data', 'shopker_display_color_variant_cart_item_data', 10, 2 );
 
 function shopker_apply_tier_pricing_to_cart( $cart )
 {
@@ -672,6 +1178,166 @@ function shopker_get_product_image_html( $product, $size = 'woocommerce_thumbnai
     }
 
     return '<div class="flex h-full w-full items-center justify-center bg-orange-50 text-6xl text-orange-200">🛍️</div>';
+}
+
+function shopker_get_color_attribute_key( $product ) {
+    if ( ! is_a( $product, 'WC_Product' ) || ! $product->is_type( 'variable' ) ) {
+        return '';
+    }
+
+    foreach ( $product->get_attributes() as $attribute_name => $attribute ) {
+        if ( stripos( $attribute_name, 'color' ) !== false ) {
+            return $attribute_name;
+        }
+
+        if ( is_object( $attribute ) && method_exists( $attribute, 'get_name' ) && stripos( $attribute->get_name(), 'color' ) !== false ) {
+            return $attribute_name;
+        }
+
+        if ( stripos( wc_attribute_label( $attribute_name ), 'color' ) !== false ) {
+            return $attribute_name;
+        }
+    }
+
+    return '';
+}
+
+function shopker_render_color_variant_badges( $product ) {
+    if ( ! is_a( $product, 'WC_Product' ) ) {
+        return '';
+    }
+
+    $swatches = array();
+    $color_attribute_key = shopker_get_color_attribute_key( $product );
+
+    if ( $color_attribute_key && $product->is_type( 'variable' ) ) {
+        $variation_key = 'attribute_' . $color_attribute_key;
+        $variations = $product->get_available_variations();
+
+        if ( is_array( $variations ) ) {
+            foreach ( $variations as $variation ) {
+                if ( empty( $variation['attributes'][ $variation_key ] ) ) {
+                    continue;
+                }
+
+                $color_value = sanitize_text_field( $variation['attributes'][ $variation_key ] );
+                if ( isset( $swatches[ $color_value ] ) ) {
+                    continue;
+                }
+
+                $label = $color_value;
+                if ( taxonomy_exists( $color_attribute_key ) ) {
+                    $term = get_term_by( 'slug', $color_value, $color_attribute_key );
+                    if ( $term && ! is_wp_error( $term ) ) {
+                        $label = $term->name;
+                    }
+                }
+
+                $image_full = '';
+                if ( ! empty( $variation['image_id'] ) ) {
+                    $image_full = wp_get_attachment_image_url( $variation['image_id'], 'full' );
+                }
+
+                $swatches[ $color_value ] = array(
+                    'variation_id'    => absint( $variation['variation_id'] ),
+                    'attribute_name'  => $variation_key,
+                    'attribute_value' => $color_value,
+                    'label'           => $label,
+                    'image_full'      => esc_url( $image_full ),
+                );
+            }
+        }
+    }
+
+    if ( empty( $swatches ) ) {
+        $variants = shopker_get_color_variants_meta( $product->get_id() );
+        foreach ( $variants as $variant ) {
+            $image_full = '';
+            if ( ! empty( $variant['image_id'] ) ) {
+                $image_full = wp_get_attachment_image_url( $variant['image_id'], 'full' );
+            }
+
+            $swatches[ $variant['label'] ] = array(
+                'variation_id'    => 0,
+                'attribute_name'  => 'shopker_color_variant',
+                'attribute_value' => $variant['label'],
+                'label'           => $variant['label'],
+                'image_full'      => esc_url( $image_full ),
+                'hex'             => $variant['hex'],
+            );
+        }
+    }
+
+    if ( empty( $swatches ) ) {
+        return '';
+    }
+
+    ob_start();
+    ?>
+    <div class="shopker-color-variant-selector mb-8">
+        <p class="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Select Color:</p>
+        <div class="flex flex-wrap gap-3">
+            <?php foreach ( $swatches as $swatch ) : ?>
+                <button type="button"
+                    class="shopker-color-swatch flex items-center justify-center border border-gray-200 rounded-full h-12 min-w-[3rem] px-3 text-xs font-black uppercase tracking-wide transition duration-200 text-gray-800"
+                    data-variation-id="<?php echo esc_attr( $swatch['variation_id'] ); ?>"
+                    data-attribute-name="<?php echo esc_attr( $swatch['attribute_name'] ); ?>"
+                    data-attribute-value="<?php echo esc_attr( $swatch['attribute_value'] ); ?>"
+                    data-image-full="<?php echo esc_attr( $swatch['image_full'] ); ?>"
+                    onclick="selectColorVariant(this)">
+                    <?php if ( ! empty( $swatch['hex'] ) && preg_match( '/^#([a-f0-9]{3}|[a-f0-9]{6})$/i', $swatch['hex'] ) ) : ?>
+                        <span class="block h-8 w-8 rounded-full border border-gray-300" style="background: <?php echo esc_attr( $swatch['hex'] ); ?>;"></span>
+                    <?php elseif ( preg_match( '/^#([a-f0-9]{3}|[a-f0-9]{6})$/i', $swatch['label'] ) ) : ?>
+                        <span class="block h-8 w-8 rounded-full border border-gray-300" style="background: <?php echo esc_attr( $swatch['label'] ); ?>;"></span>
+                    <?php else : ?>
+                        <?php echo esc_html( $swatch['label'] ); ?>
+                    <?php endif; ?>
+                </button>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+function shopker_render_color_variant_inputs( $product ) {
+    if ( ! is_a( $product, 'WC_Product' ) ) {
+        return '';
+    }
+
+    $color_attribute_key = shopker_get_color_attribute_key( $product );
+    if ( $product->is_type( 'variable' ) && $color_attribute_key ) {
+        $variation_key = 'attribute_' . $color_attribute_key;
+        $variations = $product->get_available_variations();
+        if ( empty( $variations ) || ! is_array( $variations ) ) {
+            return '';
+        }
+
+        $first_variation = reset( $variations );
+        $first_value = '';
+        if ( ! empty( $first_variation['attributes'][ $variation_key ] ) ) {
+            $first_value = sanitize_text_field( $first_variation['attributes'][ $variation_key ] );
+        }
+
+        ob_start();
+        ?>
+        <input type="hidden" name="variation_id" class="shopker-variation-id" value="<?php echo esc_attr( absint( $first_variation['variation_id'] ) ); ?>">
+        <input type="hidden" name="<?php echo esc_attr( $variation_key ); ?>" class="shopker-variation-attribute" value="<?php echo esc_attr( $first_value ); ?>">
+        <?php
+        return ob_get_clean();
+    }
+
+    $variants = shopker_get_color_variants_meta( $product->get_id() );
+    if ( empty( $variants ) ) {
+        return '';
+    }
+
+    $first_variant = reset( $variants );
+    ob_start();
+    ?>
+    <input type="hidden" name="shopker_color_variant" class="shopker-color-variant-input" value="<?php echo esc_attr( $first_variant['label'] ); ?>">
+    <?php
+    return ob_get_clean();
 }
 
 add_filter( 'woocommerce_product_single_add_to_cart_text', 'shopker_custom_cart_button_text' ); 
@@ -1303,5 +1969,129 @@ function shopker_cart_functionality_script() {
         }
         </style>
         <?php
+    }
+}
+
+/**
+ * AJAX handler to create discount order from modal
+ */
+add_action('wp_ajax_shopker_create_discount_order', 'shopker_ajax_create_discount_order');
+add_action('wp_ajax_nopriv_shopker_create_discount_order', 'shopker_ajax_create_discount_order');
+function shopker_ajax_create_discount_order() {
+    // Verify nonce
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'shopker_order_discount')) {
+        wp_send_json_error(array('message' => 'Security verification failed'), 403);
+    }
+
+    // Get and validate input data
+    $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+    $pack = isset($_POST['pack']) ? intval($_POST['pack']) : 1;
+    $price = isset($_POST['price']) ? floatval($_POST['price']) : 0;
+    $full_name = isset($_POST['full_name']) ? sanitize_text_field($_POST['full_name']) : '';
+    $phone = isset($_POST['phone']) ? sanitize_text_field($_POST['phone']) : '';
+    $address = isset($_POST['address']) ? sanitize_text_field($_POST['address']) : '';
+    $city = isset($_POST['city']) ? sanitize_text_field($_POST['city']) : '';
+    $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
+
+    // Validate required fields
+    if (!$product_id || !$full_name || !$phone || !$address || !$city || !$email || !$price) {
+        wp_send_json_error(array('message' => 'Missing required fields'));
+    }
+
+    // Get product
+    $product = wc_get_product($product_id);
+    if (!$product) {
+        wp_send_json_error(array('message' => 'Product not found'));
+    }
+
+    try {
+        // Create order
+        $order = wc_create_order();
+        
+        if (is_wp_error($order)) {
+            throw new Exception('Failed to create order: ' . $order->get_error_message());
+        }
+
+        // Split full name into first and last name
+        $name_parts = explode(' ', $full_name, 2);
+        $first_name = $name_parts[0];
+        $last_name = isset($name_parts[1]) ? $name_parts[1] : '';
+
+        // Set billing address
+        $order->set_billing_first_name($first_name);
+        $order->set_billing_last_name($last_name);
+        $order->set_billing_email($email);
+        $order->set_billing_phone($phone);
+        $order->set_billing_address_1($address);
+        $order->set_billing_city($city);
+        $order->set_billing_country('PK'); // Pakistan
+        
+        // Set shipping address same as billing
+        $order->set_shipping_first_name($first_name);
+        $order->set_shipping_last_name($last_name);
+        $order->set_shipping_address_1($address);
+        $order->set_shipping_city($city);
+        $order->set_shipping_country('PK');
+
+        // Add product to order
+        // For Pack of 2: Show 3 items (2 purchased + 1 free) with total pack price of 2
+        // For Pack of 1: Show 1 item at regular price
+        $display_quantity = $pack === 2 ? 3 : 1;
+        $order->add_product($product, $display_quantity);
+
+        // Get the line item we just added and set correct pricing
+        $items = $order->get_items();
+        foreach ($items as $item ) {
+            // Calculate unit price: total pack price divided by quantity
+            $unit_price = floatval($price) / $display_quantity;
+            
+            // Set unit price (subtotal for each item)
+            $item->set_subtotal($unit_price);
+            // Set line item total to the full pack price
+            $item->set_total(floatval($price));
+            $item->save();
+        }
+
+        // Set order totals to the pack price
+        $order->set_total(floatval($price));
+
+        // Set payment method to COD
+        $order->set_payment_method('cod');
+        $order->set_payment_method_title('Cash on Delivery');
+
+        // Set order status to pending
+        $order->set_status('pending');
+
+        // Add note explaining the pack
+        if ($pack === 2) {
+            $note = '✓ Pack of 2 GET 1 FREE - Includes 3 items (2 purchased + 1 free) at special discount price ₨' . number_format($price, 0);
+        } else {
+            $note = '✓ Pack of 1 - Standard order placed';
+        }
+        $order->add_order_note($note);
+
+        // Don't call calculate_totals() as we've manually set all totals
+        // calculate_totals() would recalculate based on product prices and override our pack pricing
+
+        // Save order
+        $order->save();
+
+        error_log('Shopker: Discount order created. Order ID: ' . $order->get_id() . ', Product: ' . $product->get_name() . ', Pack: ' . $pack . ', Price: ' . $price . ', Customer: ' . $full_name . ' (' . $email . ')');
+
+        // Build the order received URL
+        $order_received_url = add_query_arg(array(
+            'order-received' => $order->get_id(),
+            'key' => $order->get_order_key()
+        ), wc_get_checkout_url());
+
+        wp_send_json_success(array(
+            'message' => 'Order created successfully',
+            'order_id' => $order->get_id(),
+            'redirect_url' => $order_received_url
+        ));
+
+    } catch (Exception $e) {
+        error_log('Shopker: Error creating discount order - ' . $e->getMessage());
+        wp_send_json_error(array('message' => 'Error creating order: ' . $e->getMessage()));
     }
 }

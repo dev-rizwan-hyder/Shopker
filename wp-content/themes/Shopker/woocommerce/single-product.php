@@ -26,33 +26,62 @@ if (!$product)
                     <?php
                     $attachment_ids = $product->get_gallery_image_ids();
                     $main_image_id = $product->get_image_id();
+                    $gallery_images = array();
+
+                    if ( $main_image_id ) {
+                        $gallery_images[] = array(
+                            'id'    => $main_image_id,
+                            'thumb' => wp_get_attachment_image_url( $main_image_id, 'thumbnail' ),
+                            'full'  => wp_get_attachment_image_url( $main_image_id, 'full' ),
+                        );
+                    }
+
+                    foreach ( $attachment_ids as $attachment_id ) {
+                        $gallery_images[] = array(
+                            'id'    => $attachment_id,
+                            'thumb' => wp_get_attachment_image_url( $attachment_id, 'thumbnail' ),
+                            'full'  => wp_get_attachment_image_url( $attachment_id, 'full' ),
+                        );
+                    }
+
+                    $primary_image = ! empty( $gallery_images[0] ) ? $gallery_images[0] : array( 'thumb' => '', 'full' => '' );
                     ?>
 
                     <div class="hidden md:flex flex-col gap-3 w-20">
-                        <?php if ($attachment_ids):
-                            foreach ($attachment_ids as $attachment_id): ?>
-                                <div
-                                    class="cursor-pointer rounded-lg border border-gray-100 overflow-hidden hover:border-orange-500 transition product-image-clickable"
-                                    onclick="openLightbox('<?php echo esc_url(wp_get_attachment_image_url($attachment_id, 'full')); ?>')">
-                                    <img src="<?php echo esc_url(wp_get_attachment_image_url($attachment_id, 'thumbnail')); ?>"
-                                        class="w-full aspect-square object-cover">
-                                </div>
-                            <?php endforeach;
-                        endif; ?>
+                        <?php foreach ( $gallery_images as $index => $image ) : ?>
+                            <?php if ( empty( $image['thumb'] ) || empty( $image['full'] ) ) { continue; } ?>
+                            <button
+                                type="button"
+                                class="gallery-thumb cursor-pointer rounded-lg border <?php echo 0 === $index ? 'border-orange-500 ring-2 ring-orange-200' : 'border-gray-100'; ?> overflow-hidden hover:border-orange-500 transition product-image-clickable"
+                                data-full="<?php echo esc_url( $image['full'] ); ?>"
+                                data-thumb="<?php echo esc_url( $image['thumb'] ); ?>"
+                                onclick="selectProductImage(this)">
+                                <img src="<?php echo esc_url( $image['thumb'] ); ?>" class="w-full aspect-square object-cover" alt="<?php echo esc_attr( get_the_title() ); ?>">
+                            </button>
+                        <?php endforeach; ?>
                     </div>
 
                     <div class="flex-1">
-                        <div class="rounded-2xl border border-gray-50 overflow-hidden shadow-sm product-image-clickable"
-                            onclick="openLightbox('<?php echo esc_url(wp_get_attachment_image_url($main_image_id, 'full')); ?>')">
-                            <img src="<?php echo esc_url(wp_get_attachment_image_url($main_image_id, 'full')); ?>"
-                                class="w-full h-auto">
+                        <div class="rounded-2xl border border-gray-50 overflow-hidden shadow-sm product-image-clickable">
+                            <img id="shopker-product-main-image"
+                                src="<?php echo esc_url( $primary_image['full'] ); ?>"
+                                data-full="<?php echo esc_url( $primary_image['full'] ); ?>"
+                                class="w-full h-auto"
+                                alt="<?php echo esc_attr( get_the_title() ); ?>"
+                                onclick="openCurrentProductImage()">
                         </div>
                         <div class="flex md:hidden gap-2 mt-4 overflow-x-auto">
-                            <?php foreach ($attachment_ids as $attachment_id): ?>
-                                <div class="product-image-clickable" onclick="openLightbox('<?php echo esc_url(wp_get_attachment_image_url($attachment_id, 'full')); ?>')">
-                                    <img src="<?php echo esc_url(wp_get_attachment_image_url($attachment_id, 'thumbnail')); ?>"
+                            <?php foreach ( $gallery_images as $index => $image ) : ?>
+                                <?php if ( empty( $image['thumb'] ) || empty( $image['full'] ) ) { continue; } ?>
+                                <button
+                                    type="button"
+                                    class="gallery-thumb product-image-clickable <?php echo 0 === $index ? 'ring-2 ring-orange-500' : ''; ?>"
+                                    data-full="<?php echo esc_url( $image['full'] ); ?>"
+                                    data-thumb="<?php echo esc_url( $image['thumb'] ); ?>"
+                                    onclick="selectProductImage(this)">
+                                    <img src="<?php echo esc_url( $image['thumb'] ); ?>"
                                         class="w-16 h-16 rounded-lg object-cover border">
-                                </div>
+                                </button>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -85,6 +114,8 @@ if (!$product)
                             </span>
                         </div>
                     </div>
+
+                    <?php echo function_exists( 'shopker_render_color_variant_badges' ) ? wp_kses_post( shopker_render_color_variant_badges( $product ) ) : ''; ?>
 
                     <div class="mb-8">
                         <p class="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Select Pack:</p>
@@ -563,6 +594,9 @@ if (!$product)
                                 <form method="post" class="cart">
                                     <input type="hidden" name="add-to-cart" value="<?php echo esc_attr($product->get_id()); ?>">
                                     <input type="hidden" name="quantity" class="cart-quantity" value="1">
+                                    <?php if ( function_exists( 'shopker_render_color_variant_inputs' ) ) : ?>
+                                        <?php echo shopker_render_color_variant_inputs( $product ); ?>
+                                    <?php endif; ?>
                                     <button type="submit" class="shopker-add-to-cart-btn">
                                         <span>ADD TO CART —</span>
                                         <span class="cart-price-display">RS. <span class="price-amount">0</span>.00</span>
@@ -690,6 +724,12 @@ if (!$product)
                                         cartPriceAmount.textContent = Math.round(basePrice).toLocaleString('en-PK');
                                     }
 
+                                    // Initialize color variant selection if available
+                                    const firstColorSwatch = document.querySelector('.shopker-color-swatch');
+                                    if (firstColorSwatch) {
+                                        selectColorVariant(firstColorSwatch);
+                                    }
+
                                     // Live sold count animation
                                     const soldElement = document.getElementById('live-sold-count');
                                     if (soldElement) {
@@ -704,23 +744,151 @@ if (!$product)
                                     }
                                 });
 
-                                // Handle Order Now button
+                                // Handle Order Now button - Opens modal with pack selection
                                 function handleOrderNow() {
-                                    const form = document.querySelector('.shopker-cart-container form');
-                                    const qtyInput = document.querySelector('.qty-input');
-                                    const cartQtyField = document.querySelector('.cart-quantity');
-                                    
-                                    if (form && qtyInput && cartQtyField) {
-                                        const qty = parseInt(qtyInput.value) || 1;
-                                        cartQtyField.value = qty;
-                                        
-                                        // Submit form and redirect to checkout
-                                        form.addEventListener('submit', function(e) {
-                                            window.location.href = '<?php echo esc_url(wc_get_checkout_url()); ?>';
-                                        }, { once: true });
-                                        
-                                        form.submit();
+                                    const modal = document.getElementById('order-discount-modal');
+                                    if (modal) {
+                                        modal.style.display = 'flex';
+                                        // Reset form
+                                        const form = document.getElementById('order-discount-form');
+                                        if (form) {
+                                            form.reset();
+                                        }
+                                        // Set default pack selection to pack 1
+                                        document.querySelectorAll('.modal-pack-btn').forEach(btn => {
+                                            if (btn.dataset.pack === '1') {
+                                                btn.click();
+                                            }
+                                        });
                                     }
+                                }
+
+                                // Close modal function
+                                function closeOrderModal() {
+                                    const modal = document.getElementById('order-discount-modal');
+                                    if (modal) {
+                                        modal.style.display = 'none';
+                                    }
+                                }
+
+                                // Handle modal pack selection
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const modalPackBtns = document.querySelectorAll('.modal-pack-btn');
+                                    modalPackBtns.forEach(btn => {
+                                        btn.addEventListener('click', function() {
+                                            // Remove active class from all buttons
+                                            modalPackBtns.forEach(b => {
+                                                b.classList.remove('border-[#1a1a1a]', 'bg-[#1a1a1a]', 'text-white');
+                                                b.classList.add('border-gray-200', 'bg-white', 'text-gray-900');
+                                            });
+                                            // Add active class to clicked button
+                                            this.classList.remove('border-gray-200', 'bg-white', 'text-gray-900');
+                                            this.classList.add('border-[#1a1a1a]', 'bg-[#1a1a1a]', 'text-white');
+                                            
+                                            // Store selected pack
+                                            const selectedPack = this.dataset.pack;
+                                            const selectedPrice = this.dataset.price;
+                                            document.getElementById('modal-selected-pack').value = selectedPack;
+                                            document.getElementById('modal-selected-price').value = selectedPrice;
+                                            
+                                            // Update price display in modal
+                                            const priceDisplay = document.getElementById('modal-price-display');
+                                            if (priceDisplay) {
+                                                priceDisplay.textContent = 'Rs. ' + parseInt(selectedPrice).toLocaleString('en-PK');
+                                            }
+                                            
+                                            // Update pack label
+                                            const packLabel = document.getElementById('modal-pack-label');
+                                            if (packLabel) {
+                                                packLabel.textContent = selectedPack;
+                                            }
+                                            
+                                            // Update button price
+                                            const btnPrice = document.getElementById('modal-btn-price');
+                                            if (btnPrice) {
+                                                btnPrice.textContent = parseInt(selectedPrice).toLocaleString('en-PK');
+                                            }
+                                        });
+                                    });
+
+                                    // Handle Order Now form submission
+                                    const orderForm = document.getElementById('order-discount-form');
+                                    if (orderForm) {
+                                        orderForm.addEventListener('submit', function(e) {
+                                            e.preventDefault();
+                                            submitOrderDiscountForm();
+                                        });
+                                    }
+
+                                    // Close modal on background click
+                                    const modal = document.getElementById('order-discount-modal');
+                                    if (modal) {
+                                        modal.addEventListener('click', function(e) {
+                                            if (e.target === this) {
+                                                closeOrderModal();
+                                            }
+                                        });
+                                    }
+                                });
+
+                                // Submit Order Discount Form
+                                function submitOrderDiscountForm() {
+                                    const form = document.getElementById('order-discount-form');
+                                    const fullName = document.getElementById('modal-full-name').value.trim();
+                                    const phone = document.getElementById('modal-phone').value.trim();
+                                    const address = document.getElementById('modal-address').value.trim();
+                                    const city = document.getElementById('modal-city').value.trim();
+                                    const email = document.getElementById('modal-email').value.trim();
+                                    const pack = document.getElementById('modal-selected-pack').value;
+                                    const price = document.getElementById('modal-selected-price').value;
+
+                                    // Basic validation
+                                    if (!fullName || !phone || !address || !city || !email || !pack) {
+                                        alert('Please fill in all required fields');
+                                        return;
+                                    }
+
+                                    // Disable submit button
+                                    const submitBtn = form.querySelector('button[type="submit"]');
+                                    submitBtn.disabled = true;
+                                    submitBtn.innerHTML = 'Processing...';
+
+                                    // Send AJAX request
+                                    fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/x-www-form-urlencoded',
+                                        },
+                                        body: new URLSearchParams({
+                                            action: 'shopker_create_discount_order',
+                                            nonce: '<?php echo wp_create_nonce('shopker_order_discount'); ?>',
+                                            product_id: '<?php echo esc_js($product->get_id()); ?>',
+                                            pack: pack,
+                                            price: price,
+                                            full_name: fullName,
+                                            phone: phone,
+                                            address: address,
+                                            city: city,
+                                            email: email
+                                        })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            // Redirect to thank you page
+                                            window.location.href = data.data.redirect_url;
+                                        } else {
+                                            alert('Error creating order: ' + data.data.message);
+                                            submitBtn.disabled = false;
+                                            submitBtn.innerHTML = 'Order Now - Rs.1,299.00';
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        alert('An error occurred. Please try again.');
+                                        submitBtn.disabled = false;
+                                        submitBtn.innerHTML = 'Order Now - Rs.1,299.00';
+                                    });
                                 }
 
                                 function buyNowWithPack() {
@@ -778,6 +946,78 @@ if (!$product)
                                     if (lightbox) {
                                         lightbox.classList.remove('active');
                                     }
+                                }
+
+                                function selectProductImage(button) {
+                                    if (!button) return;
+
+                                    const fullSrc = button.dataset.full || '';
+                                    const mainImage = document.getElementById('shopker-product-main-image');
+                                    if (mainImage && fullSrc) {
+                                        mainImage.src = fullSrc;
+                                        mainImage.dataset.full = fullSrc;
+                                    }
+
+                                    document.querySelectorAll('.gallery-thumb').forEach((thumb) => {
+                                        thumb.classList.remove('border-orange-500', 'ring-2', 'ring-orange-200', 'ring-orange-500');
+                                        thumb.classList.add('border-gray-100');
+                                    });
+
+                                    button.classList.remove('border-gray-100');
+                                    button.classList.add('border-orange-500', 'ring-2', 'ring-orange-200');
+                                }
+
+                                function selectColorVariant(button) {
+                                    if (!button) return;
+
+                                    const variationId = button.dataset.variationId || '';
+                                    const attributeName = button.dataset.attributeName || '';
+                                    const attributeValue = button.dataset.attributeValue || '';
+                                    const imageSrc = button.dataset.imageFull || button.dataset.imageThumb || '';
+                                    const mainImage = document.getElementById('shopker-product-main-image');
+
+                                    if (mainImage && imageSrc) {
+                                        mainImage.src = imageSrc;
+                                        mainImage.dataset.full = imageSrc;
+                                    }
+
+                                    document.querySelectorAll('.shopker-color-swatch').forEach((swatch) => {
+                                        swatch.classList.remove('border-orange-500', 'bg-orange-500', 'text-white');
+                                        swatch.classList.add('border-gray-200', 'bg-white', 'text-gray-800');
+                                    });
+
+                                    button.classList.remove('border-gray-200', 'bg-white', 'text-gray-800');
+                                    button.classList.add('border-orange-500', 'bg-orange-500', 'text-white');
+
+                                    const variationField = document.querySelector('input.shopker-variation-id');
+                                    if (variationField && variationId) {
+                                        variationField.value = variationId;
+                                    }
+
+                                    if (attributeName && attributeValue) {
+                                        let attrField = document.querySelector('input[name="' + attributeName + '"]');
+                                        if (attrField) {
+                                            attrField.value = attributeValue;
+                                        } else {
+                                            const form = document.querySelector('form.cart');
+                                            if (form) {
+                                                const input = document.createElement('input');
+                                                input.type = 'hidden';
+                                                input.name = attributeName;
+                                                input.value = attributeValue;
+                                                input.className = 'shopker-variation-attribute';
+                                                form.appendChild(input);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                function openCurrentProductImage() {
+                                    const mainImage = document.getElementById('shopker-product-main-image');
+                                    if (!mainImage) return;
+
+                                    const fullSrc = mainImage.dataset.full || mainImage.src;
+                                    openLightbox(fullSrc);
                                 }
                             </script>
                         </div>
@@ -846,6 +1086,8 @@ if (!$product)
                             class="text-[11px] font-black uppercase tracking-widest border-t border-gray-100 pt-4 w-full text-center">
                             30-DAYS FREE RETURN & EXCHANGE POLICY
                         </p>
+
+                        <?php echo function_exists( 'shopker_render_product_video' ) ? shopker_render_product_video( $product ) : ''; ?>
                     </div>
                 </div>
             </div>
@@ -892,6 +1134,125 @@ if (!$product)
             </div>
         </div>
     </section>
+</div>
+
+<!-- Order Discount Modal -->
+<div id="order-discount-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-[#FF4500] to-[#FF6B35] text-white p-6 flex justify-between items-center sticky top-0 z-10">
+            <h2 class="text-2xl font-black">🛍️ Order Now With Discount</h2>
+            <button onclick="closeOrderModal()" class="text-2xl hover:scale-110 transition">×</button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-8">
+            <!-- Product Item -->
+            <div class="bg-gray-50 rounded-xl p-4 mb-6 flex items-center gap-4">
+                <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                    <?php
+                    if ($product->get_image_id()) {
+                        echo wp_get_attachment_image($product->get_image_id(), 'thumbnail', false, array('class' => 'w-full h-full object-cover rounded-lg'));
+                    }
+                    ?>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-black text-gray-900"><?php the_title(); ?></h3>
+                    <p class="text-sm text-gray-600 font-bold">Pack Of <span id="modal-pack-label">1</span></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-2xl font-black text-orange-600" id="modal-price-display">Rs. <?php echo number_format($tier_prices[1] ?? 0, 0); ?></p>
+                </div>
+            </div>
+
+            <!-- Pack Selection -->
+            <div class="mb-8">
+                <p class="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Select Pack:</p>
+                <div class="flex flex-col gap-3">
+                    <?php
+                    for ($qty = 1; $qty <= 2; $qty++) {
+                        $is_active = $qty === 1 ? 'active' : '';
+                        ?>
+                        <button type="button"
+                            class="modal-pack-btn w-full px-4 py-4 rounded-xl font-black uppercase text-sm transition duration-200 border-2 flex items-center justify-between <?php echo $qty === 1 ? 'border-[#1a1a1a] bg-[#1a1a1a] text-white' : 'border-gray-200 bg-white text-gray-900 hover:border-[#1a1a1a]'; ?>"
+                            data-pack="<?php echo $qty; ?>" data-price="<?php echo esc_attr($tier_prices[$qty]); ?>">
+                            <div class="leading-none">
+                                <p class="mb-1">Pack of <?php echo $qty; ?><?php echo $qty === 2 ? ' <span class="text-orange-400">🎁 GET 1 FREE</span>' : ''; ?></p>
+                                <p class="text-xs font-bold">Rs. <?php echo number_format($tier_prices[$qty], 0); ?></p>
+                            </div>
+                        </button>
+                    <?php } ?>
+                </div>
+            </div>
+
+            <!-- Order Form -->
+            <form id="order-discount-form" class="space-y-4">
+                <!-- Hidden fields -->
+                <input type="hidden" id="modal-selected-pack" value="1">
+                <input type="hidden" id="modal-selected-price" value="<?php echo esc_attr($tier_prices[1] ?? 0); ?>">
+
+                <!-- Full Name -->
+                <div>
+                    <label class="block font-bold text-gray-700 mb-2">Full Name *</label>
+                    <input type="text" id="modal-full-name" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none" placeholder="Your full name" required>
+                </div>
+
+                <!-- Phone -->
+                <div>
+                    <label class="block font-bold text-gray-700 mb-2">Phone *</label>
+                    <input type="tel" id="modal-phone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none" placeholder="03XXXXXXXXX" required>
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label class="block font-bold text-gray-700 mb-2">Complete Address *</label>
+                    <textarea id="modal-address" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none" placeholder="Flat / House, Street, Area" rows="2" required></textarea>
+                </div>
+
+                <!-- City -->
+                <div>
+                    <label class="block font-bold text-gray-700 mb-2">City *</label>
+                    <input type="text" id="modal-city" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none" placeholder="Karachi, Lahore, etc." required>
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label class="block font-bold text-gray-700 mb-2">Email *</label>
+                    <input type="email" id="modal-email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-orange-500 outline-none" placeholder="your@email.com" required>
+                </div>
+
+                <!-- Shipping Options -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p class="text-sm font-black text-gray-700 mb-3">Shipping Options</p>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="radio" name="shipping" value="standard" checked class="w-4 h-4">
+                        <span class="text-sm font-bold text-gray-700">Standard Shipping - Free</span>
+                    </label>
+                </div>
+
+                <!-- Order Button -->
+                <button type="submit" class="w-full bg-gradient-to-r from-[#FF4500] to-[#FF6B35] text-white py-4 rounded-xl font-black uppercase mt-6 hover:shadow-lg transition transform hover:scale-105">
+                    Order Now - Rs.<span id="modal-btn-price">1,299</span>.00
+                </button>
+
+                <!-- Trust Badges -->
+                <div class="flex flex-wrap justify-center gap-4 pt-4 text-center">
+                    <div class="text-xs">
+                        <span class="text-lg">🔒</span>
+                        <p class="font-bold text-gray-700">Secure Payment</p>
+                    </div>
+                    <div class="text-xs">
+                        <span class="text-lg">🚚</span>
+                        <p class="font-bold text-gray-700">Free Delivery</p>
+                    </div>
+                    <div class="text-xs">
+                        <span class="text-lg">✅</span>
+                        <p class="font-bold text-gray-700">30-Days Return</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <?php get_footer('shop'); ?>

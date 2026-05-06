@@ -42,16 +42,16 @@
                     <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CUTE KEYCHAINS</a></li>
                     <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">SHINCHAN KEYCHAIN</a></li>
                     <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CROSSBODY BAGS</a></li>
-                    <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CONTACT US</a></li>
+                    <li><a href="contact-us" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CONTACT US</a></li>
                 </ul>
             </nav>
 
             <!-- Promotional Pill Buttons Desktop -->
             <div class="promo-buttons hidden 2xl:flex gap-2 flex-shrink-0">
-                <a href="#" class="bg-orange-600 hover:bg-orange-700 text-white px-3 xl:px-5 py-2 rounded-full text-xs font-bold uppercase transition transform hover:scale-105 whitespace-nowrap">
+                <a href="shop" class="bg-orange-600 hover:bg-orange-700 text-white px-3 xl:px-5 py-2 rounded-full text-xs font-bold uppercase transition transform hover:scale-105 whitespace-nowrap">
                     🎁 BUY 2 GET 1 FREE
                 </a>
-                <a href="#" class="bg-orange-600 hover:bg-orange-700 text-white px-3 xl:px-5 py-2 rounded-full text-xs font-bold uppercase transition transform hover:scale-105 whitespace-nowrap">
+                <a href="shop" class="bg-orange-600 hover:bg-orange-700 text-white px-3 xl:px-5 py-2 rounded-full text-xs font-bold uppercase transition transform hover:scale-105 whitespace-nowrap">
                     🚚 FREE DELIVERY
                 </a>
             </div>
