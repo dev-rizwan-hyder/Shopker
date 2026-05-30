@@ -13,7 +13,7 @@ if (!$order) {
 get_header('shop');
 ?>
 
-<div class="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 pb-20">
+<div class="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 pb-20" style="position:relative; z-index:1;">
     <div class="py-4 px-6 md:px-10 max-w-7xl mt-16 mx-auto">
         <nav class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
             <a href="<?php echo esc_url(home_url('/')); ?>" class="hover:text-[#FF6F00] transition">Home</a>
@@ -155,3 +155,4 @@ get_header('shop');
 
 <?php
 get_footer('shop');
+?>

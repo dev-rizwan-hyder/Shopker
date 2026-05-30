@@ -121,16 +121,6 @@ get_header('shop');
                         <span class="text-orange-500"><?php echo $order->get_formatted_order_total(); ?></span>
                     </div>
                 </div>
-
-                <!-- Delivery Address -->
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <h3 class="font-black mb-3">📍 Delivery Address:</h3>
-                    <p class="font-bold text-gray-900"><?php echo $order->get_formatted_billing_address(); ?></p>
-                    <div class="mt-3 pt-3 border-t border-blue-100 space-y-1">
-                        <p class="text-sm text-gray-600"><strong>Phone:</strong> <?php echo esc_html($order->get_billing_phone()); ?></p>
-                        <p class="text-sm text-gray-600"><strong>Email:</strong> <?php echo esc_html($order->get_billing_email()); ?></p>
-                    </div>
-                </div>
             </div>
 
             <!-- What Happens Next Section -->

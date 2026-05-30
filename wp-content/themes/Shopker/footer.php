@@ -286,6 +286,57 @@
             right: -100%;
         }
     }
+    
+    .shopker-qty-wrapper{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:12px;
+}
+
+.shopker-qty-btn{
+    width:32px;
+    height:32px;
+    border:none;
+    border-radius:8px;
+    background:#111;
+    color:#fff;
+    font-size:18px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.shopker-qty-btn:hover{
+    background:#FF4500;
+}
+
+.shopker-qty-number{
+    min-width:20px;
+    text-align:center;
+    font-weight:900;
+    color:#111;
+}
+
+.shopker-remove-btn{
+    margin-left:10px;
+    width:32px;
+    height:32px;
+    border:none;
+    border-radius:8px;
+    background:#ff2b2b;
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:all .3s ease;
+}
+
+.shopker-remove-btn:hover{
+    background:#e00000;
+    transform:scale(1.08);
+}
 </style>
 
 <script>
@@ -341,17 +392,51 @@ document.addEventListener('DOMContentLoaded', function() {
                         const itemTotal = item.line_total;
                         total += itemTotal;
                         html += `
-                            <div class="shopker-sidebar-item">
-                                <div class="shopker-sidebar-item-image">
-                                    <img src="${item.product_image}" alt="${item.product_name}">
-                                </div>
-                                <div class="shopker-sidebar-item-details">
-                                    <p class="shopker-sidebar-item-name">${item.product_name}</p>
-                                    <p class="shopker-sidebar-item-qty">Qty: ${item.quantity}</p>
-                                    <p class="shopker-sidebar-item-price">Rs. ${parseInt(itemTotal).toLocaleString('en-PK')}</p>
-                                </div>
-                            </div>
-                        `;
+    <div class="shopker-sidebar-item">
+
+        <div class="shopker-sidebar-item-image">
+            <img src="${item.product_image}" alt="${item.product_name}">
+        </div>
+
+        <div class="shopker-sidebar-item-details">
+
+            <p class="shopker-sidebar-item-name">
+                ${item.product_name}
+            </p>
+
+            <p class="shopker-sidebar-item-price">
+                Rs. ${parseInt(itemTotal).toLocaleString('en-PK')}
+            </p>
+
+            <!-- Quantity Controls -->
+            <div class="shopker-qty-wrapper">
+
+                <button class="shopker-qty-btn"
+                    onclick="updateSidebarQty('${item.cart_key}', ${item.quantity - 1})">
+                    −
+                </button>
+
+                <span class="shopker-qty-number">
+                    ${item.quantity}
+                </span>
+
+                <button class="shopker-qty-btn"
+                    onclick="updateSidebarQty('${item.cart_key}', ${item.quantity + 1})">
+                    +
+                </button>
+
+                <!-- Remove -->
+               <button class="shopker-remove-btn"
+    onclick="removeSidebarItem('${item.cart_key}')">
+    ✕
+</button>
+
+            </div>
+
+        </div>
+
+    </div>
+`;
                     });
                 } else {
                     html = '<div class="shopker-sidebar-empty"><div class="shopker-sidebar-empty-icon">🛒</div><p>Your cart is empty</p></div>';
@@ -390,7 +475,51 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Error fetching cart:', err);
         });
     };
+    
+    window.updateSidebarQty = function(cartKey, qty) {
+
+    if(qty < 1){
+        removeSidebarItem(cartKey);
+        return;
+    }
+
+    fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+            action: 'shopker_update_cart_qty',
+            cart_key: cartKey,
+            quantity: qty
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        updateCartSidebar();
+    });
+}
+
+window.removeSidebarItem = function(cartKey) {
+
+    fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+            action: 'shopker_remove_cart_item',
+            cart_key: cartKey
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        updateCartSidebar();
+    });
+}
 });
+
+
 </script>
 
 <?php wp_footer(); ?>

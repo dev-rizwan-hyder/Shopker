@@ -9,6 +9,22 @@
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 
+<?php
+$shopker_shop_url = function_exists( 'wc_get_page_permalink' ) ? wc_get_page_permalink( 'shop' ) : home_url( '/' );
+$shopker_tag_nav_items = array(
+    'big-sales'       => 'BIG SALES',
+    'cute-led-keychain'  => 'CUTE LED KEYCHAIN',
+    'face-changing-keychain' => 'FACE CHANGING KEYCHAIN',
+    'crossbody-bags'  => 'CROSSBODY BAGS',
+);
+$shopker_tag_nav_links = array();
+
+foreach ( $shopker_tag_nav_items as $shopker_tag_slug => $shopker_tag_label ) {
+    $shopker_term = get_term_by( 'slug', $shopker_tag_slug, 'product_tag' );
+    $shopker_tag_nav_links[ $shopker_tag_slug ] = ( $shopker_term && ! is_wp_error( $shopker_term ) ) ? get_term_link( $shopker_term ) : $shopker_shop_url;
+}
+?>
+
 <header id="site-header" class="relative">
     <!-- Promotional Banner Slider -->
     <div class="promo-slider-container">
@@ -37,11 +53,10 @@
             <!-- Desktop Navigation Menu -->
             <nav class="desktop-nav hidden lg:flex gap-8 flex-1 justify-center">
                 <ul class="flex gap-8 list-none m-0 p-0 items-center">
-                    <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">BIG SALES</a></li>
-                    <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">NEW ARRIVALS</a></li>
-                    <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CUTE KEYCHAINS</a></li>
-                    <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">SHINCHAN KEYCHAIN</a></li>
-                    <li><a href="#" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CROSSBODY BAGS</a></li>
+                    <li><a href="<?php echo esc_url( $shopker_tag_nav_links['big-sales'] ); ?>" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">BIG SALES</a></li>
+                    <li><a href="<?php echo esc_url( $shopker_tag_nav_links['cute-led-keychain'] ); ?>" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CUTE LED KEYCHAIN</a></li>
+                    <li><a href="<?php echo esc_url( $shopker_tag_nav_links['face-changing-keychain'] ); ?>" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">FACE CHANGING KEYCHAIN</a></li>
+                    <li><a href="<?php echo esc_url( $shopker_tag_nav_links['crossbody-bags'] ); ?>" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CROSSBODY BAGS</a></li>
                     <li><a href="contact-us" class="text-black text-xs xl:text-sm font-bold uppercase hover:text-orange-600 transition whitespace-nowrap">CONTACT US</a></li>
                 </ul>
             </nav>

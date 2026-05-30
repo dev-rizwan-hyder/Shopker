@@ -26,52 +26,6 @@ do_action('woocommerce_before_checkout_form');
 
     <section class="pb-20 pt-6">
         <div class="mx-auto max-w-7xl px-6 md:px-10">
-            <!-- Header -->
-            <div class="text-center mb-16">
-                <div class="inline-block mb-6 p-4 bg-gradient-to-br from-[#FF6F00]/10 to-[#FF4500]/10 rounded-2xl">
-                    <span class="text-6xl">💳</span>
-                </div>
-                <h1 class="text-5xl md:text-6xl font-black text-gray-900 mb-3 bg-gradient-to-r from-gray-900 via-[#FF4500] to-gray-900 bg-clip-text text-transparent">
-                    SECURE CHECKOUT
-                </h1>
-                <p class="text-lg text-gray-600">Complete your order with our secure payment system</p>
-            </div>
-
-            <!-- Progress Indicator -->
-            <div class="mb-16">
-                <div class="flex items-center justify-center gap-2 md:gap-4 px-4">
-                    <!-- Step 1: Cart -->
-                    <div class="flex flex-col items-center gap-2">
-                        <div class="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-[#FF6F00] to-[#FF4500] text-white rounded-full font-black shadow-lg">
-                            ✓
-                        </div>
-                        <span class="text-xs md:text-sm font-bold text-gray-700 text-center">Cart</span>
-                    </div>
-
-                    <!-- Line -->
-                    <div class="flex-1 h-1.5 bg-gradient-to-r from-[#FF6F00] to-[#FF4500] rounded-full mx-2 md:mx-4"></div>
-
-                    <!-- Step 2: Checkout -->
-                    <div class="flex flex-col items-center gap-2">
-                        <div class="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-[#FF6F00] to-[#FF4500] text-white rounded-full font-black shadow-lg">
-                            2
-                        </div>
-                        <span class="text-xs md:text-sm font-bold text-[#FF6F00] text-center">Checkout</span>
-                    </div>
-
-                    <!-- Line -->
-                    <div class="flex-1 h-1.5 bg-gray-300 rounded-full mx-2 md:mx-4"></div>
-
-                    <!-- Step 3: Confirm -->
-                    <div class="flex flex-col items-center gap-2">
-                        <div class="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 bg-gray-200 text-gray-500 rounded-full font-black">
-                            3
-                        </div>
-                        <span class="text-xs md:text-sm font-bold text-gray-600 text-center">Confirm</span>
-                    </div>
-                </div>
-            </div>
-
             <div class="grid gap-8 lg:grid-cols-3">
                 <!-- Checkout Form -->
                 <div class="lg:col-span-2">
